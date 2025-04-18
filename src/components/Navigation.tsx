@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Home, User, Users, LogOut, DollarSign } from 'lucide-react';
+import { Home, User, Users, LogOut, Wallet } from 'lucide-react';
 
 const Navigation = () => {
   const location = useLocation();
@@ -15,8 +15,8 @@ const Navigation = () => {
     <nav className="bg-white shadow-md py-3 px-6 mb-8">
       <div className="container mx-auto flex justify-between items-center">
         <div className="flex items-center">
-          <DollarSign className="h-6 w-6 text-primary mr-2" />
-          <h1 className="text-xl font-bold text-textDark">Expense Guardian</h1>
+          <Wallet className="h-6 w-6 text-primary mr-2" />
+          <h1 className="text-xl font-bold text-textDark">ExpenSmart</h1>
         </div>
         
         <div className="flex items-center space-x-1">
@@ -70,3 +70,4 @@ const Navigation = () => {
 };
 
 export default Navigation;
+

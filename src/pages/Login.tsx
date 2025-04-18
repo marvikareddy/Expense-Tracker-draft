@@ -11,7 +11,7 @@ const Login = () => {
       <div className="bg-white shadow-md rounded-lg p-8 max-w-md w-full">
         <div className="text-center mb-6">
           <ShieldCheck className="mx-auto h-12 w-12 text-primary mb-4" />
-          <h1 className="text-3xl font-bold text-textDark">Expense Guardian</h1>
+          <h1 className="text-3xl font-bold text-textDark">ExpenSmart</h1>
           <p className="text-muted-foreground mt-2">Secure Family Financial Management</p>
         </div>
         
@@ -74,3 +74,4 @@ const Login = () => {
 };
 
 export default Login;
+

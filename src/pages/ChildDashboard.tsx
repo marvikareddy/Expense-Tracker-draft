@@ -2,12 +2,14 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, PiggyBank, Gift } from 'lucide-react';
+import Navigation from '@/components/Navigation';
 
 const ChildDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container py-8">
-        <h1 className="text-4xl font-bold mb-8 text-textDark">Emma's Wallet</h1>
+      <Navigation />
+      <div className="container py-4">
+        <h1 className="text-3xl font-bold mb-6 text-textDark">Emma's Wallet</h1>
         
         <div className="grid gap-4 md:grid-cols-3">
           <Card>

@@ -1,11 +1,22 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import ExpenseForm from "@/components/ExpenseForm";
+import ExpenseSummary from "@/components/ExpenseSummary";
+import RecentExpenses from "@/components/RecentExpenses";
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="container py-8">
+        <h1 className="text-4xl font-bold mb-8 text-textDark">Expense Tracker</h1>
+        
+        <div className="mb-8">
+          <ExpenseSummary />
+        </div>
+
+        <div className="grid gap-8 md:grid-cols-2">
+          <ExpenseForm />
+          <RecentExpenses />
+        </div>
       </div>
     </div>
   );

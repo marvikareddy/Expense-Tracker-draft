@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -37,10 +38,29 @@ const RecentExpenses = () => {
       }
     };
 
+    // Initial load
     loadExpenses();
-    // Listen for storage events to update the list when new expenses are added
-    window.addEventListener('storage', loadExpenses);
-    return () => window.removeEventListener('storage', loadExpenses);
+    
+    // Setup event listener for local storage changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'expenses') {
+        loadExpenses();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Create a custom event listener for same-tab updates
+    const handleExpenseAdded = () => {
+      loadExpenses();
+    };
+    
+    window.addEventListener('expenseAdded', handleExpenseAdded);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('expenseAdded', handleExpenseAdded);
+    };
   }, []);
 
   const currencies = [

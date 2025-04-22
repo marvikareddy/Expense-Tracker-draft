@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,6 +101,9 @@ const ExpenseForm = () => {
     const existingExpenses = JSON.parse(localStorage.getItem('expenses') || '[]');
     const updatedExpenses = [newExpense, ...existingExpenses];
     localStorage.setItem('expenses', JSON.stringify(updatedExpenses));
+    
+    // Dispatch a custom event to notify other components in the same tab
+    window.dispatchEvent(new Event('expenseAdded'));
 
     if (!isOnline) {
       setOfflineExpenses(prev => [...prev, newExpense]);

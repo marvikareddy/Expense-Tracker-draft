@@ -16,6 +16,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface Expense {
   id: number;
@@ -29,6 +30,7 @@ interface Expense {
 const RecentExpenses = () => {
   const [currencyFilter, setCurrencyFilter] = useState<string>("all");
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const { currency, getCurrencySymbol } = useCurrency();
   
   useEffect(() => {
     const loadExpenses = () => {
@@ -71,9 +73,9 @@ const RecentExpenses = () => {
     { code: 'INR', symbol: '₹' },
   ];
 
-  const getCurrencySymbol = (code: string = "USD") => {
-    const currency = currencies.find(c => c.code === code);
-    return currency ? currency.symbol : '$';
+  const getCurrencySymbolByCode = (code: string = "USD") => {
+    const currencyObj = currencies.find(c => c.code === code);
+    return currencyObj ? currencyObj.symbol : getCurrencySymbol();
   };
 
   const filteredExpenses = currencyFilter === "all" 
@@ -126,7 +128,7 @@ const RecentExpenses = () => {
                   <TableCell>{expense.description}</TableCell>
                   <TableCell>{expense.category}</TableCell>
                   <TableCell className="text-right">
-                    {getCurrencySymbol(expense.currency)}{expense.amount.toFixed(2)} 
+                    {getCurrencySymbolByCode(expense.currency)}{expense.amount.toFixed(2)} 
                     {expense.currency && <span className="text-xs text-muted-foreground ml-1">{expense.currency}</span>}
                   </TableCell>
                 </TableRow>

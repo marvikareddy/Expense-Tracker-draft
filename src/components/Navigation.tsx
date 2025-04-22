@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,20 @@ const Navigation = () => {
   const isActive = (path: string) => {
     return location.pathname === path;
   };
+
+  const handleCurrencyChange = (currencyCode: string) => {
+    localStorage.setItem('selectedCurrency', currencyCode);
+    // Dispatch an event to notify other components
+    window.dispatchEvent(new CustomEvent('currencyChanged', { detail: currencyCode }));
+  };
+
+  const currencies = [
+    { code: 'USD', symbol: '$', name: 'US Dollar' },
+    { code: 'EUR', symbol: '€', name: 'Euro' },
+    { code: 'GBP', symbol: '£', name: 'British Pound' },
+    { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
+    { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
+  ];
 
   return (
     <nav className="bg-white shadow-md py-3 px-6 mb-8">
@@ -95,11 +110,15 @@ const Navigation = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem className="cursor-pointer">USD ($)</DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer">EUR (€)</DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer">GBP (£)</DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer">JPY (¥)</DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer">INR (₹)</DropdownMenuItem>
+              {currencies.map(currency => (
+                <DropdownMenuItem 
+                  key={currency.code}
+                  className="cursor-pointer"
+                  onClick={() => handleCurrencyChange(currency.code)}
+                >
+                  {currency.symbol} {currency.code} - {currency.name}
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
           

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select';
 import { PlusCircle, Save, WifiOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface Expense {
   id: string;
@@ -25,12 +26,18 @@ interface Expense {
 
 const ExpenseForm = () => {
   const { toast } = useToast();
+  const { currency } = useCurrency();
   const [amount, setAmount] = useState<string>('');
   const [category, setCategory] = useState<string>('');
   const [description, setDescription] = useState<string>('');
-  const [currency, setCurrency] = useState<string>('INR');
+  const [selectedCurrency, setSelectedCurrency] = useState<string>(currency);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [offlineExpenses, setOfflineExpenses] = useState<Expense[]>([]);
+
+  // Update selected currency when global currency changes
+  useEffect(() => {
+    setSelectedCurrency(currency);
+  }, [currency]);
 
   const currencies = [
     { code: 'USD', symbol: '$', name: 'US Dollar' },
@@ -93,7 +100,7 @@ const ExpenseForm = () => {
       category,
       description,
       date: new Date().toISOString().split('T')[0],
-      currency,
+      currency: selectedCurrency,
       offlineCreated: !isOnline
     };
 
@@ -162,14 +169,14 @@ const ExpenseForm = () => {
                 onChange={(e) => setAmount(e.target.value)}
               />
               <span className="absolute left-3 top-2.5 text-gray-500">
-                {getCurrencySymbol(currency)}
+                {getCurrencySymbol(selectedCurrency)}
               </span>
             </div>
           </div>
 
           <div>
             <Label htmlFor="currency">Currency</Label>
-            <Select value={currency} onValueChange={setCurrency}>
+            <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
               <SelectTrigger>
                 <SelectValue placeholder="Select currency" />
               </SelectTrigger>

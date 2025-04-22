@@ -1,8 +1,12 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowDownIcon, ArrowUpIcon, DollarSign } from "lucide-react";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 const ExpenseSummary = () => {
+  const { getCurrencySymbol } = useCurrency();
+  const currencySymbol = getCurrencySymbol();
+  
   return (
     <div className="grid gap-4 md:grid-cols-3">
       <Card>
@@ -11,7 +15,7 @@ const ExpenseSummary = () => {
           <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">$1,234.56</div>
+          <div className="text-2xl font-bold">{currencySymbol}1,234.56</div>
           <p className="text-xs text-muted-foreground">
             +20.1% from last month
           </p>
@@ -23,7 +27,7 @@ const ExpenseSummary = () => {
           <ArrowUpIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">$2,000.00</div>
+          <div className="text-2xl font-bold">{currencySymbol}2,000.00</div>
           <p className="text-xs text-muted-foreground">
             61.7% remaining
           </p>
@@ -37,7 +41,7 @@ const ExpenseSummary = () => {
         <CardContent>
           <div className="text-2xl font-bold">Food & Dining</div>
           <p className="text-xs text-muted-foreground">
-            $345.20 this month
+            {currencySymbol}345.20 this month
           </p>
         </CardContent>
       </Card>

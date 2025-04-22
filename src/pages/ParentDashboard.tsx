@@ -59,7 +59,7 @@ const ParentDashboard = () => {
               <CreditCard className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$125.00</div>
+              <div className="text-2xl font-bold">₹125.00</div>
               <p className="text-xs text-muted-foreground">
                 Per week
               </p>
@@ -72,7 +72,7 @@ const ParentDashboard = () => {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$355.00</div>
+              <div className="text-2xl font-bold">₹355.00</div>
               <p className="text-xs text-muted-foreground">
                 +15% from last month
               </p>
@@ -97,11 +97,11 @@ const ParentDashboard = () => {
                     <div className="flex-grow">
                       <h3 className="font-medium">{child.name}, {child.age}</h3>
                       <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>Allowance: ${child.allowance}/week</span>
-                        <span>Savings: ${child.savings}</span>
+                        <span>Allowance: ₹{child.allowance}/week</span>
+                        <span>Savings: ₹{child.savings}</span>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" className="min-w-[80px]">
                       <User className="h-4 w-4 mr-1" />
                       Manage
                     </Button>
@@ -169,7 +169,7 @@ const ParentDashboard = () => {
                       <PiggyBank className="h-5 w-5 text-primary mr-2" />
                       <h3 className="font-semibold">Summer Vacation</h3>
                     </div>
-                    <span className="text-sm font-medium">$1,200 / $3,000</span>
+                    <span className="text-sm font-medium">₹1,200 / ₹3,000</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2.5">
                     <div className="bg-primary h-2.5 rounded-full" style={{ width: '40%' }}></div>
@@ -183,7 +183,7 @@ const ParentDashboard = () => {
                       <PiggyBank className="h-5 w-5 text-primary mr-2" />
                       <h3 className="font-semibold">New Computer</h3>
                     </div>
-                    <span className="text-sm font-medium">$800 / $1,200</span>
+                    <span className="text-sm font-medium">₹800 / ₹1,200</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2.5">
                     <div className="bg-primary h-2.5 rounded-full" style={{ width: '67%' }}></div>
@@ -200,3 +200,4 @@ const ParentDashboard = () => {
 };
 
 export default ParentDashboard;
+

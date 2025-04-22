@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -28,57 +27,21 @@ interface Expense {
 
 const RecentExpenses = () => {
   const [currencyFilter, setCurrencyFilter] = useState<string>("all");
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   
-  const expenses: Expense[] = [
-    {
-      id: 1,
-      date: "2025-04-18",
-      description: "Grocery Shopping",
-      category: "Food & Dining",
-      amount: 89.99,
-      currency: "USD"
-    },
-    {
-      id: 2,
-      date: "2025-04-17",
-      description: "Movie Tickets",
-      category: "Entertainment",
-      amount: 32.50,
-      currency: "USD"
-    },
-    {
-      id: 3,
-      date: "2025-04-17",
-      description: "Gas Station",
-      category: "Transportation",
-      amount: 45.00,
-      currency: "USD"
-    },
-    {
-      id: 4,
-      date: "2025-04-16",
-      description: "Internet Bill",
-      category: "Bills & Utilities",
-      amount: 79.99,
-      currency: "USD"
-    },
-    {
-      id: 5,
-      date: "2025-04-15",
-      description: "Dinner at Restaurant",
-      category: "Food & Dining",
-      amount: 65.50,
-      currency: "EUR"
-    },
-    {
-      id: 6,
-      date: "2025-04-14",
-      description: "Souvenir Shopping",
-      category: "Shopping",
-      amount: 120.75,
-      currency: "GBP"
-    },
-  ];
+  useEffect(() => {
+    const loadExpenses = () => {
+      const storedExpenses = localStorage.getItem('expenses');
+      if (storedExpenses) {
+        setExpenses(JSON.parse(storedExpenses));
+      }
+    };
+
+    loadExpenses();
+    // Listen for storage events to update the list when new expenses are added
+    window.addEventListener('storage', loadExpenses);
+    return () => window.removeEventListener('storage', loadExpenses);
+  }, []);
 
   const currencies = [
     { code: 'USD', symbol: '$' },

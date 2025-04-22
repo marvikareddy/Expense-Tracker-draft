@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,7 +27,7 @@ const ExpenseForm = () => {
   const [amount, setAmount] = useState<string>('');
   const [category, setCategory] = useState<string>('');
   const [description, setDescription] = useState<string>('');
-  const [currency, setCurrency] = useState<string>('USD');
+  const [currency, setCurrency] = useState<string>('INR');
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [offlineExpenses, setOfflineExpenses] = useState<Expense[]>([]);
 
@@ -97,8 +96,12 @@ const ExpenseForm = () => {
       offlineCreated: !isOnline
     };
 
+    // Store in localStorage for persistence
+    const existingExpenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+    const updatedExpenses = [newExpense, ...existingExpenses];
+    localStorage.setItem('expenses', JSON.stringify(updatedExpenses));
+
     if (!isOnline) {
-      // Store expense locally when offline
       setOfflineExpenses(prev => [...prev, newExpense]);
       toast({
         title: "Expense Saved Offline",
@@ -106,19 +109,11 @@ const ExpenseForm = () => {
         variant: "default"
       });
     } else {
-      // If we have any stored offline expenses and we're now online, we would sync them here
       if (offlineExpenses.length > 0) {
-        // This would be where you'd sync with a backend
-        toast({
-          title: "Syncing Offline Expenses",
-          description: `Syncing ${offlineExpenses.length} offline expenses`,
-          variant: "default"
-        });
         setOfflineExpenses([]);
         localStorage.removeItem('offlineExpenses');
       }
       
-      // Here you would normally send the expense to your backend
       toast({
         title: "Expense Added",
         description: "Your expense has been recorded successfully",

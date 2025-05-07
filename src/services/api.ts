@@ -4,9 +4,9 @@
 
 import { v4 as uuidv4 } from 'uuid';
 
-// Add uuid package
-<lov-add-dependency>uuid@latest</lov-add-dependency>
-<lov-add-dependency>@types/uuid@latest</lov-add-dependency>
+// Add uuid package dependencies
+// uuid should already be installed, but if not, we'll include it here
+// @types/uuid should also be installed for TypeScript type definitions
 
 export interface Expense {
   id: string;

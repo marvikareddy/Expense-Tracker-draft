@@ -124,7 +124,7 @@ const Navigation = () => {
         <div className="flex items-center gap-2">
           {user && <>
               <Button variant={isActive('/') ? "default" : "ghost"} size="sm" className="min-w-24 justify-center" asChild>
-                <Link to="/" className="move it to the right a little">
+                <Link to="/" className="">
                   <Home className="mr-1 h-4 w-4" />
                   Dashboard
                 </Link>

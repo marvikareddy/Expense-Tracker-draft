@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Home, User, Users, LogOut, Wallet, Wifi, WifiOff, Globe } from 'lucide-react';
 import { 
@@ -9,10 +9,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { authService } from '@/services/authService';
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Navigation = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [user, setUser] = useState(null);
   
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -21,9 +27,25 @@ const Navigation = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user || null);
+      }
+    );
+
+    // Check for existing session
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user || null);
+    };
+    
+    checkSession();
+    
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      subscription?.unsubscribe();
     };
   }, []);
   
@@ -35,6 +57,34 @@ const Navigation = () => {
     localStorage.setItem('selectedCurrency', currencyCode);
     // Dispatch an event to notify other components
     window.dispatchEvent(new CustomEvent('currencyChanged', { detail: currencyCode }));
+  };
+
+  const handleLogout = async () => {
+    try {
+      const { success, error } = await authService.logout();
+      
+      if (success) {
+        toast({
+          title: "Logged out successfully",
+          description: "You have been logged out of your account.",
+        });
+        // Force page reload to clear any state
+        window.location.href = '/login';
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Logout Failed",
+          description: error || "Failed to log out. Please try again.",
+        });
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast({
+        variant: "destructive",
+        title: "Logout Error",
+        description: "An unexpected error occurred during logout.",
+      });
+    }
   };
 
   const currencies = [
@@ -67,41 +117,45 @@ const Navigation = () => {
         </div>
         
         <div className="flex items-center gap-2">
-          <Button 
-            variant={isActive('/') ? "default" : "ghost"} 
-            size="sm" 
-            className="min-w-24 justify-center"
-            asChild
-          >
-            <Link to="/">
-              <Home className="mr-1 h-4 w-4" />
-              Dashboard
-            </Link>
-          </Button>
-          
-          <Button 
-            variant={isActive('/parent') ? "default" : "ghost"} 
-            size="sm"
-            className="min-w-24 justify-center" 
-            asChild
-          >
-            <Link to="/parent">
-              <Users className="mr-1 h-4 w-4" />
-              Family
-            </Link>
-          </Button>
-          
-          <Button 
-            variant={isActive('/child') ? "default" : "ghost"} 
-            size="sm"
-            className="min-w-24 justify-center" 
-            asChild
-          >
-            <Link to="/child">
-              <User className="mr-1 h-4 w-4" />
-              Kids
-            </Link>
-          </Button>
+          {user && (
+            <>
+              <Button 
+                variant={isActive('/') ? "default" : "ghost"} 
+                size="sm" 
+                className="min-w-24 justify-center"
+                asChild
+              >
+                <Link to="/">
+                  <Home className="mr-1 h-4 w-4" />
+                  Dashboard
+                </Link>
+              </Button>
+              
+              <Button 
+                variant={isActive('/parent') ? "default" : "ghost"} 
+                size="sm"
+                className="min-w-24 justify-center" 
+                asChild
+              >
+                <Link to="/parent">
+                  <Users className="mr-1 h-4 w-4" />
+                  Family
+                </Link>
+              </Button>
+              
+              <Button 
+                variant={isActive('/child') ? "default" : "ghost"} 
+                size="sm"
+                className="min-w-24 justify-center" 
+                asChild
+              >
+                <Link to="/child">
+                  <User className="mr-1 h-4 w-4" />
+                  Kids
+                </Link>
+              </Button>
+            </>
+          )}
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -122,16 +176,27 @@ const Navigation = () => {
             </DropdownMenuContent>
           </DropdownMenu>
           
-          <Button 
-            variant="outline" 
-            size="sm" 
-            asChild
-          >
-            <Link to="/login">
+          {user ? (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleLogout}
+            >
               <LogOut className="mr-1 h-4 w-4" />
               Logout
-            </Link>
-          </Button>
+            </Button>
+          ) : (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              asChild
+            >
+              <Link to="/login">
+                <User className="mr-1 h-4 w-4" />
+                Login
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
     </nav>

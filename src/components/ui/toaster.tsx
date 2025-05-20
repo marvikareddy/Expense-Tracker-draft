@@ -14,8 +14,8 @@ export function Toaster() {
     }) {
       return <Toast key={id} className="bg-red-500">
             <div className="grid gap-1">
-              {title && <ToastTitle>{title}</ToastTitle>}
-              {description && <ToastDescription>{description}</ToastDescription>}
+              {title && <ToastTitle className="rounded-none mx-[100px]">{title}</ToastTitle>}
+              {description && <ToastDescription className="mx-[60px]">{description}</ToastDescription>}
             </div>
             {action}
             <ToastClose />

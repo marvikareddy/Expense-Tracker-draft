@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -19,11 +19,16 @@ import { Label } from '@/components/ui/label';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { Loader2 } from 'lucide-react';
+import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
 
 const RecentExpenses = () => {
   const [currencyFilter, setCurrencyFilter] = useState<string>("all");
   const { expenses, isLoading } = useExpenses();
-  const { getCurrencySymbol } = useCurrency();
+  const { currency: displayCurrency, getCurrencySymbol } = useCurrency();
+  const { convertAmount, isLoading: isConverting } = useCurrencyConversion();
+  
+  const [convertedExpenses, setConvertedExpenses] = useState<Array<any>>([]);
+  const [isProcessing, setIsProcessing] = useState<boolean>(true);
   
   const currencies = [
     { code: 'USD', symbol: '$' },
@@ -38,9 +43,47 @@ const RecentExpenses = () => {
     return currencyObj ? currencyObj.symbol : getCurrencySymbol();
   };
 
+  // Convert all expenses to the display currency
+  useEffect(() => {
+    async function convertExpenses() {
+      if (!expenses || expenses.length === 0) {
+        setConvertedExpenses([]);
+        setIsProcessing(false);
+        return;
+      }
+
+      setIsProcessing(true);
+      
+      try {
+        const converted = await Promise.all(
+          expenses.map(async (expense) => {
+            const originalAmount = expense.amount;
+            const convertedAmount = await convertAmount(originalAmount, expense.currency);
+            
+            return {
+              ...expense,
+              convertedAmount,
+              displayCurrency
+            };
+          })
+        );
+        
+        setConvertedExpenses(converted);
+      } catch (error) {
+        console.error("Error converting expenses:", error);
+      } finally {
+        setIsProcessing(false);
+      }
+    }
+    
+    if (!isLoading) {
+      convertExpenses();
+    }
+  }, [expenses, isLoading, displayCurrency, convertAmount]);
+
   const filteredExpenses = currencyFilter === "all" 
-    ? expenses 
-    : expenses.filter(expense => expense.currency === currencyFilter);
+    ? convertedExpenses 
+    : convertedExpenses.filter(expense => expense.currency === currencyFilter);
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -65,7 +108,7 @@ const RecentExpenses = () => {
       </div>
       
       <div className="relative overflow-x-auto">
-        {isLoading ? (
+        {isLoading || isProcessing ? (
           <div className="flex justify-center items-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
@@ -76,13 +119,14 @@ const RecentExpenses = () => {
                 <TableHead>Date</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Category</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-right">Original</TableHead>
+                <TableHead className="text-right">In {displayCurrency}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredExpenses.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
                     No expenses found in this currency
                   </TableCell>
                 </TableRow>
@@ -94,7 +138,11 @@ const RecentExpenses = () => {
                     <TableCell>{expense.category}</TableCell>
                     <TableCell className="text-right">
                       {getCurrencySymbolByCode(expense.currency)}{expense.amount.toFixed(2)} 
-                      {expense.currency && <span className="text-xs text-muted-foreground ml-1">{expense.currency}</span>}
+                      <span className="text-xs text-muted-foreground ml-1">{expense.currency}</span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {getCurrencySymbolByCode(displayCurrency)}{expense.convertedAmount.toFixed(2)} 
+                      <span className="text-xs text-muted-foreground ml-1">{displayCurrency}</span>
                     </TableCell>
                   </TableRow>
                 ))

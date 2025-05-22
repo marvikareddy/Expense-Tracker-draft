@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
 
 interface Expense {
   id: string;
@@ -31,6 +32,7 @@ const ExpenseForm = () => {
   const { currency } = useCurrency();
   const { createExpense, syncOfflineExpenses } = useExpenses();
   const { user } = useAuth();
+  const { convertAmount, isLoading: isConverting } = useCurrencyConversion();
   
   const [amount, setAmount] = useState<string>('');
   const [category, setCategory] = useState<string>('');
@@ -133,9 +135,12 @@ const ExpenseForm = () => {
     }
 
     try {
+      const parsedAmount = parseFloat(amount);
+      
+      // Store the expense in the original currency
       await createExpense.mutateAsync({
         user_id: user.id,
-        amount: parseFloat(amount),
+        amount: parsedAmount,
         category,
         description,
         date: new Date().toISOString().split('T')[0],
@@ -268,12 +273,12 @@ const ExpenseForm = () => {
         <Button 
           type="submit" 
           className="w-full bg-primary hover:bg-primary/90"
-          disabled={createExpense.isPending}
+          disabled={createExpense.isPending || isConverting}
         >
-          {createExpense.isPending ? (
+          {createExpense.isPending || isConverting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
+              {isConverting ? "Converting..." : "Saving..."}
             </>
           ) : !isOnline ? (
             <>

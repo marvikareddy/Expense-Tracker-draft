@@ -152,7 +152,7 @@ const Navigation = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {currencies.map(currency => <DropdownMenuItem key={currency.code} className="cursor-pointer" onClick={() => handleCurrencyChange(currency.code)}>
+              {currencies.map(currency => <DropdownMenuItem key={currency.code} onClick={() => handleCurrencyChange(currency.code)} className="cursor-pointer bg-violet-300">
                   {currency.symbol} {currency.code} - {currency.name}
                 </DropdownMenuItem>)}
             </DropdownMenuContent>

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -16,55 +16,15 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { useExpenses } from '@/hooks/useExpenses';
 import { useCurrency } from '@/contexts/CurrencyContext';
-
-interface Expense {
-  id: number;
-  date: string;
-  description: string;
-  category: string;
-  amount: number;
-  currency?: string;
-}
+import { Loader2 } from 'lucide-react';
 
 const RecentExpenses = () => {
   const [currencyFilter, setCurrencyFilter] = useState<string>("all");
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const { currency, getCurrencySymbol } = useCurrency();
+  const { expenses, isLoading } = useExpenses();
+  const { getCurrencySymbol } = useCurrency();
   
-  useEffect(() => {
-    const loadExpenses = () => {
-      const storedExpenses = localStorage.getItem('expenses');
-      if (storedExpenses) {
-        setExpenses(JSON.parse(storedExpenses));
-      }
-    };
-
-    // Initial load
-    loadExpenses();
-    
-    // Setup event listener for local storage changes
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'expenses') {
-        loadExpenses();
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Create a custom event listener for same-tab updates
-    const handleExpenseAdded = () => {
-      loadExpenses();
-    };
-    
-    window.addEventListener('expenseAdded', handleExpenseAdded);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('expenseAdded', handleExpenseAdded);
-    };
-  }, []);
-
   const currencies = [
     { code: 'USD', symbol: '$' },
     { code: 'EUR', symbol: '€' },
@@ -105,37 +65,43 @@ const RecentExpenses = () => {
       </div>
       
       <div className="relative overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredExpenses.length === 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center items-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                  No expenses found in this currency
-                </TableCell>
+                <TableHead>Date</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
               </TableRow>
-            ) : (
-              filteredExpenses.map((expense) => (
-                <TableRow key={expense.id}>
-                  <TableCell>{expense.date}</TableCell>
-                  <TableCell>{expense.description}</TableCell>
-                  <TableCell>{expense.category}</TableCell>
-                  <TableCell className="text-right">
-                    {getCurrencySymbolByCode(expense.currency)}{expense.amount.toFixed(2)} 
-                    {expense.currency && <span className="text-xs text-muted-foreground ml-1">{expense.currency}</span>}
+            </TableHeader>
+            <TableBody>
+              {filteredExpenses.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
+                    No expenses found in this currency
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                filteredExpenses.map((expense) => (
+                  <TableRow key={expense.id}>
+                    <TableCell>{expense.date}</TableCell>
+                    <TableCell>{expense.description}</TableCell>
+                    <TableCell>{expense.category}</TableCell>
+                    <TableCell className="text-right">
+                      {getCurrencySymbolByCode(expense.currency)}{expense.amount.toFixed(2)} 
+                      {expense.currency && <span className="text-xs text-muted-foreground ml-1">{expense.currency}</span>}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
       </div>
     </div>
   );

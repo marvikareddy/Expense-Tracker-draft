@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,9 +9,11 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { PlusCircle, Save, WifiOff } from 'lucide-react';
+import { PlusCircle, Save, WifiOff, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useExpenses } from '@/hooks/useExpenses';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Expense {
   id: string;
@@ -27,12 +28,16 @@ interface Expense {
 const ExpenseForm = () => {
   const { toast } = useToast();
   const { currency } = useCurrency();
+  const { createExpense, syncOfflineExpenses } = useExpenses();
+  const { user } = useAuth();
+  
   const [amount, setAmount] = useState<string>('');
   const [category, setCategory] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [selectedCurrency, setSelectedCurrency] = useState<string>(currency);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-  const [offlineExpenses, setOfflineExpenses] = useState<Expense[]>([]);
+  const [offlineExpenses, setOfflineExpenses] = useState<any[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Update selected currency when global currency changes
   useEffect(() => {
@@ -75,14 +80,37 @@ const ExpenseForm = () => {
     };
   }, []);
 
-  // Save offline expenses to localStorage whenever they change
+  // Sync offline expenses when going back online
   useEffect(() => {
-    if (offlineExpenses.length > 0) {
-      localStorage.setItem('offlineExpenses', JSON.stringify(offlineExpenses));
-    }
-  }, [offlineExpenses]);
+    const syncExpensesWhenOnline = async () => {
+      if (isOnline && offlineExpenses.length > 0 && user) {
+        try {
+          setIsSyncing(true);
+          await syncOfflineExpenses.mutateAsync();
+          setOfflineExpenses([]);
+          localStorage.removeItem('offlineExpenses');
+          toast({
+            title: "Sync Complete",
+            description: "Your offline expenses have been synced"
+          });
+        } catch (error) {
+          console.error("Failed to sync expenses:", error);
+          toast({
+            title: "Sync Failed",
+            description: "Could not sync your offline expenses. Please try again later."
+          });
+        } finally {
+          setIsSyncing(false);
+        }
+      }
+    };
 
-  const handleSubmit = (e: React.FormEvent) => {
+    if (isOnline && user) {
+      syncExpensesWhenOnline();
+    }
+  }, [isOnline, user, offlineExpenses.length, syncOfflineExpenses, toast]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!amount || !category || !description) {
@@ -94,48 +122,56 @@ const ExpenseForm = () => {
       return;
     }
 
-    const newExpense: Expense = {
-      id: Date.now().toString(),
-      amount: parseFloat(amount),
-      category,
-      description,
-      date: new Date().toISOString().split('T')[0],
-      currency: selectedCurrency,
-      offlineCreated: !isOnline
-    };
-
-    // Store in localStorage for persistence
-    const existingExpenses = JSON.parse(localStorage.getItem('expenses') || '[]');
-    const updatedExpenses = [newExpense, ...existingExpenses];
-    localStorage.setItem('expenses', JSON.stringify(updatedExpenses));
-    
-    // Dispatch a custom event to notify other components in the same tab
-    window.dispatchEvent(new Event('expenseAdded'));
-
-    if (!isOnline) {
-      setOfflineExpenses(prev => [...prev, newExpense]);
-      toast({
-        title: "Expense Saved Offline",
-        description: "Your expense has been saved locally and will sync when you're back online",
-        variant: "default"
+    try {
+      await createExpense.mutateAsync({
+        amount: parseFloat(amount),
+        category,
+        description,
+        date: new Date().toISOString().split('T')[0],
+        currency: selectedCurrency
       });
-    } else {
-      if (offlineExpenses.length > 0) {
-        setOfflineExpenses([]);
-        localStorage.removeItem('offlineExpenses');
-      }
       
+      // Reset form
+      setAmount('');
+      setCategory('');
+      setDescription('');
+    } catch (error) {
+      console.error("Error submitting expense:", error);
+      
+      if (!isOnline) {
+        // Keep track of offline expenses count
+        const storedExpenses = JSON.parse(localStorage.getItem('offlineExpenses') || '[]');
+        setOfflineExpenses(storedExpenses);
+      }
+    }
+  };
+
+  const handleSyncClick = async () => {
+    if (!isOnline) {
       toast({
-        title: "Expense Added",
-        description: "Your expense has been recorded successfully",
-        variant: "default"
+        title: "Offline",
+        description: "Please connect to the internet to sync expenses",
+        variant: "destructive"
       });
+      return;
     }
 
-    // Reset form
-    setAmount('');
-    setCategory('');
-    setDescription('');
+    try {
+      setIsSyncing(true);
+      await syncOfflineExpenses.mutateAsync();
+      setOfflineExpenses([]);
+      toast({
+        title: "Sync Complete",
+        description: "Your offline expenses have been synced"
+      });
+    } catch (error) {
+      toast({
+        title: "Sync Failed",
+        description: "Could not sync your offline expenses. Please try again later."
+      });
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const getCurrencySymbol = (code: string) => {
@@ -218,8 +254,17 @@ const ExpenseForm = () => {
           />
         </div>
 
-        <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
-          {!isOnline ? (
+        <Button 
+          type="submit" 
+          className="w-full bg-primary hover:bg-primary/90"
+          disabled={createExpense.isPending}
+        >
+          {createExpense.isPending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : !isOnline ? (
             <>
               <Save className="mr-2 h-4 w-4" />
               Save Offline
@@ -234,10 +279,32 @@ const ExpenseForm = () => {
       </form>
       
       {offlineExpenses.length > 0 && (
-        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
-          <p className="text-amber-700 text-sm">
-            {offlineExpenses.length} expense{offlineExpenses.length !== 1 ? 's' : ''} saved offline
-          </p>
+        <div className="mt-4">
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+            <div className="flex justify-between items-center">
+              <p className="text-amber-700 text-sm">
+                {offlineExpenses.length} expense{offlineExpenses.length !== 1 ? 's' : ''} saved offline
+              </p>
+              {isOnline && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleSyncClick}
+                  disabled={isSyncing}
+                  className="text-xs h-7 px-2"
+                >
+                  {isSyncing ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <>
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Sync Now
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

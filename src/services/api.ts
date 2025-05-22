@@ -1,121 +1,141 @@
 
-// This is a simple implementation of a backend service using localStorage
-// In a real application, this would be replaced with actual API calls
-
-import { v4 as uuidv4 } from 'uuid';
-
-// Add uuid package dependencies
-// uuid should already be installed, but if not, we'll include it here
-// @types/uuid should also be installed for TypeScript type definitions
+import { supabase } from "@/integrations/supabase/client";
+import { v4 as uuidv4 } from "uuid";
 
 export interface Expense {
   id: string;
   amount: number;
-  category: string;
   description: string;
-  date: string;
+  category: string;
   currency: string;
-  offlineCreated?: boolean;
+  date: string;
+  user_id?: string;
 }
 
-// Simulate API latency
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-// Expense API
 export const expenseAPI = {
-  async getAll(): Promise<Expense[]> {
-    await delay(300); // Simulate network delay
-    const expenses = localStorage.getItem('expenses');
-    return expenses ? JSON.parse(expenses) : [];
-  },
+  // Get all expenses for the current user
+  getAll: async (): Promise<Expense[]> => {
+    try {
+      const { data, error } = await supabase
+        .from("expenses")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-  async create(expense: Omit<Expense, 'id'>): Promise<Expense> {
-    await delay(300); // Simulate network delay
-    const newExpense = {
-      ...expense,
-      id: uuidv4(),
-    };
-    
-    const existingExpenses = await this.getAll();
-    const updatedExpenses = [newExpense, ...existingExpenses];
-    localStorage.setItem('expenses', JSON.stringify(updatedExpenses));
-    
-    // Dispatch an event for real-time updates
-    window.dispatchEvent(new Event('expenseAdded'));
-    
-    return newExpense;
-  },
+      if (error) {
+        console.error("Error fetching expenses:", error);
+        throw new Error(error.message);
+      }
 
-  async update(id: string, expense: Partial<Expense>): Promise<Expense> {
-    await delay(300); // Simulate network delay
-    const expenses = await this.getAll();
-    const index = expenses.findIndex(e => e.id === id);
-    
-    if (index === -1) {
-      throw new Error(`Expense with id ${id} not found`);
+      return data || [];
+    } catch (error) {
+      console.error("Failed to fetch expenses:", error);
+      // If there's an error (e.g., offline), try to get data from localStorage
+      const localExpenses = JSON.parse(localStorage.getItem("expenses") || "[]");
+      return localExpenses;
     }
-    
-    const updatedExpense = { ...expenses[index], ...expense };
-    expenses[index] = updatedExpense;
-    localStorage.setItem('expenses', JSON.stringify(expenses));
-    
-    return updatedExpense;
   },
 
-  async delete(id: string): Promise<void> {
-    await delay(300); // Simulate network delay
-    const expenses = await this.getAll();
-    const filteredExpenses = expenses.filter(e => e.id !== id);
-    localStorage.setItem('expenses', JSON.stringify(filteredExpenses));
-  },
+  // Create a new expense
+  create: async (expense: Omit<Expense, "id">): Promise<Expense> => {
+    try {
+      const newExpense = {
+        ...expense,
+        id: uuidv4(), // Generate a UUID for the expense
+      };
 
-  async syncOfflineExpenses(): Promise<void> {
-    const offlineExpenses = localStorage.getItem('offlineExpenses');
-    
-    if (offlineExpenses) {
-      const expenses = JSON.parse(offlineExpenses);
-      
-      // In a real app, this would send the expenses to a server
-      const existingExpenses = await this.getAll();
-      const allExpenses = [...expenses, ...existingExpenses];
-      
-      localStorage.setItem('expenses', JSON.stringify(allExpenses));
-      localStorage.removeItem('offlineExpenses');
-      
-      // Notify components about the update
-      window.dispatchEvent(new Event('expenseAdded'));
+      const { data, error } = await supabase
+        .from("expenses")
+        .insert([newExpense])
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error creating expense:", error);
+        // Save locally if there's an error (e.g., offline)
+        const localExpenses = JSON.parse(localStorage.getItem("expenses") || "[]");
+        const offlineExpense = { ...newExpense, offlineCreated: true };
+        localStorage.setItem("expenses", JSON.stringify([offlineExpense, ...localExpenses]));
+        
+        // Also add to offline queue
+        const offlineQueue = JSON.parse(localStorage.getItem("offlineExpenses") || "[]");
+        localStorage.setItem("offlineExpenses", JSON.stringify([...offlineQueue, offlineExpense]));
+        
+        return offlineExpense;
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Failed to create expense:", error);
+      throw error;
     }
-  }
-};
-
-// Currency API
-export const currencyAPI = {
-  async getRate(from: string, to: string): Promise<number> {
-    await delay(300); // Simulate network delay
-    
-    // These are mock conversion rates - in a real app, you'd fetch from an API
-    const rates: Record<string, Record<string, number>> = {
-      USD: { EUR: 0.85, GBP: 0.74, JPY: 110.5, INR: 74.5 },
-      EUR: { USD: 1.18, GBP: 0.87, JPY: 130.2, INR: 88.1 },
-      GBP: { USD: 1.36, EUR: 1.15, JPY: 150.1, INR: 100.8 },
-      JPY: { USD: 0.009, EUR: 0.0077, GBP: 0.0067, INR: 0.67 },
-      INR: { USD: 0.0134, EUR: 0.0114, GBP: 0.0099, JPY: 1.48 }
-    };
-    
-    // If same currency, return 1
-    if (from === to) return 1;
-    
-    // If conversion exists, return it
-    if (rates[from] && rates[from][to]) {
-      return rates[from][to];
-    }
-    
-    // Default fallback
-    return 1;
   },
-  
-  async convertAmount(amount: number, from: string, to: string): Promise<number> {
-    const rate = await this.getRate(from, to);
-    return amount * rate;
+
+  // Update an expense
+  update: async (id: string, expense: Partial<Expense>): Promise<Expense> => {
+    try {
+      const { data, error } = await supabase
+        .from("expenses")
+        .update(expense)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error updating expense:", error);
+        throw new Error(error.message);
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Failed to update expense:", error);
+      throw error;
+    }
+  },
+
+  // Delete an expense
+  delete: async (id: string): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from("expenses")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        console.error("Error deleting expense:", error);
+        throw new Error(error.message);
+      }
+    } catch (error) {
+      console.error("Failed to delete expense:", error);
+      throw error;
+    }
+  },
+
+  // Sync offline expenses to Supabase
+  syncOfflineExpenses: async (): Promise<void> => {
+    try {
+      const offlineExpenses = JSON.parse(localStorage.getItem("offlineExpenses") || "[]");
+      
+      if (offlineExpenses.length === 0) {
+        return;
+      }
+
+      // Remove user_id as it will be automatically set by RLS
+      const cleanedExpenses = offlineExpenses.map(({ user_id, offlineCreated, ...expense }: any) => expense);
+      
+      const { error } = await supabase
+        .from("expenses")
+        .insert(cleanedExpenses);
+
+      if (error) {
+        console.error("Error syncing offline expenses:", error);
+        throw new Error(error.message);
+      }
+
+      // Clear offline expenses after successful sync
+      localStorage.removeItem("offlineExpenses");
+    } catch (error) {
+      console.error("Failed to sync offline expenses:", error);
+      throw error;
+    }
   }
 };

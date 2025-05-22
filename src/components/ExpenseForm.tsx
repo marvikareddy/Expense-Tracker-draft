@@ -123,8 +123,18 @@ const ExpenseForm = () => {
       return;
     }
 
+    if (!user) {
+      toast({
+        title: "Not Logged In",
+        description: "You must be logged in to add expenses",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       await createExpense.mutateAsync({
+        user_id: user.id,
         amount: parseFloat(amount),
         category,
         description,

@@ -1,141 +1,137 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { v4 as uuidv4 } from "uuid";
+import { supabase } from '@/integrations/supabase/client';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface Expense {
   id: string;
+  user_id: string;
   amount: number;
   description: string;
   category: string;
   currency: string;
   date: string;
-  user_id?: string;
+  created_at?: string;
+  offlineCreated?: boolean;
 }
 
 export const expenseAPI = {
   // Get all expenses for the current user
   getAll: async (): Promise<Expense[]> => {
-    try {
-      const { data, error } = await supabase
-        .from("expenses")
-        .select("*")
-        .order("created_at", { ascending: false });
+    const { data, error } = await supabase
+      .from('expenses')
+      .select('*')
+      .order('date', { ascending: false });
 
-      if (error) {
-        console.error("Error fetching expenses:", error);
-        throw new Error(error.message);
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error("Failed to fetch expenses:", error);
-      // If there's an error (e.g., offline), try to get data from localStorage
-      const localExpenses = JSON.parse(localStorage.getItem("expenses") || "[]");
-      return localExpenses;
+    if (error) {
+      console.error('Error fetching expenses:', error);
+      throw error;
     }
+
+    return data || [];
   },
 
   // Create a new expense
-  create: async (expense: Omit<Expense, "id">): Promise<Expense> => {
-    try {
-      const newExpense = {
-        ...expense,
-        id: uuidv4(), // Generate a UUID for the expense
-      };
+  create: async (expense: Omit<Expense, 'id' | 'created_at'>): Promise<Expense> => {
+    const { data, error } = await supabase
+      .from('expenses')
+      .insert(expense)
+      .select()
+      .single();
 
-      const { data, error } = await supabase
-        .from("expenses")
-        .insert([newExpense])
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Error creating expense:", error);
-        // Save locally if there's an error (e.g., offline)
-        const localExpenses = JSON.parse(localStorage.getItem("expenses") || "[]");
-        const offlineExpense = { ...newExpense, offlineCreated: true };
-        localStorage.setItem("expenses", JSON.stringify([offlineExpense, ...localExpenses]));
-        
-        // Also add to offline queue
-        const offlineQueue = JSON.parse(localStorage.getItem("offlineExpenses") || "[]");
-        localStorage.setItem("offlineExpenses", JSON.stringify([...offlineQueue, offlineExpense]));
-        
-        return offlineExpense;
-      }
-
-      return data;
-    } catch (error) {
-      console.error("Failed to create expense:", error);
+    if (error) {
+      console.error('Error creating expense:', error);
       throw error;
     }
+
+    return data;
   },
 
-  // Update an expense
+  // Update an existing expense
   update: async (id: string, expense: Partial<Expense>): Promise<Expense> => {
-    try {
-      const { data, error } = await supabase
-        .from("expenses")
-        .update(expense)
-        .eq("id", id)
-        .select()
-        .single();
+    const { data, error } = await supabase
+      .from('expenses')
+      .update(expense)
+      .eq('id', id)
+      .select()
+      .single();
 
-      if (error) {
-        console.error("Error updating expense:", error);
-        throw new Error(error.message);
-      }
-
-      return data;
-    } catch (error) {
-      console.error("Failed to update expense:", error);
+    if (error) {
+      console.error('Error updating expense:', error);
       throw error;
     }
+
+    return data;
   },
 
   // Delete an expense
   delete: async (id: string): Promise<void> => {
-    try {
-      const { error } = await supabase
-        .from("expenses")
-        .delete()
-        .eq("id", id);
+    const { error } = await supabase
+      .from('expenses')
+      .delete()
+      .eq('id', id);
 
-      if (error) {
-        console.error("Error deleting expense:", error);
-        throw new Error(error.message);
-      }
-    } catch (error) {
-      console.error("Failed to delete expense:", error);
+    if (error) {
+      console.error('Error deleting expense:', error);
       throw error;
     }
   },
 
-  // Sync offline expenses to Supabase
+  // Sync offline expenses
   syncOfflineExpenses: async (): Promise<void> => {
+    const offlineExpensesString = localStorage.getItem('offlineExpenses');
+    
+    if (!offlineExpensesString) {
+      return;
+    }
+    
     try {
-      const offlineExpenses = JSON.parse(localStorage.getItem("offlineExpenses") || "[]");
+      const offlineExpenses: Expense[] = JSON.parse(offlineExpensesString);
       
       if (offlineExpenses.length === 0) {
         return;
       }
-
-      // Remove user_id as it will be automatically set by RLS
-      const cleanedExpenses = offlineExpenses.map(({ user_id, offlineCreated, ...expense }: any) => expense);
       
-      const { error } = await supabase
-        .from("expenses")
-        .insert(cleanedExpenses);
-
-      if (error) {
-        console.error("Error syncing offline expenses:", error);
-        throw new Error(error.message);
+      // Process each offline expense individually
+      for (const expense of offlineExpenses) {
+        // Make sure each expense has a user_id
+        if (!expense.user_id) {
+          const { data } = await supabase.auth.getUser();
+          if (data?.user) {
+            expense.user_id = data.user.id;
+          }
+        }
+        
+        // Remove any properties not needed for insert
+        const { id, created_at, offlineCreated, ...expenseData } = expense;
+        
+        await supabase
+          .from('expenses')
+          .insert({
+            ...expenseData,
+            user_id: expense.user_id
+          });
       }
-
+      
       // Clear offline expenses after successful sync
-      localStorage.removeItem("offlineExpenses");
+      localStorage.removeItem('offlineExpenses');
     } catch (error) {
-      console.error("Failed to sync offline expenses:", error);
+      console.error('Error syncing offline expenses:', error);
       throw error;
     }
   }
+};
+
+// Offline expense handling
+export const saveExpenseOffline = (expense: Omit<Expense, 'id'>): Expense => {
+  const newExpense: Expense = {
+    id: uuidv4(),
+    ...expense,
+    offlineCreated: true
+  };
+
+  const storedExpenses = JSON.parse(localStorage.getItem('offlineExpenses') || '[]');
+  storedExpenses.push(newExpense);
+  localStorage.setItem('offlineExpenses', JSON.stringify(storedExpenses));
+  
+  return newExpense;
 };

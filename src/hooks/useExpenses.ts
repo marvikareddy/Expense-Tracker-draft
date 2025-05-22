@@ -15,7 +15,7 @@ export function useExpenses() {
 
   // Create a new expense
   const createExpense = useMutation({
-    mutationFn: (expense: Omit<Expense, 'id'>) => expenseAPI.create(expense),
+    mutationFn: (expense: Omit<Expense, 'id' | 'created_at'>) => expenseAPI.create(expense),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       toast({

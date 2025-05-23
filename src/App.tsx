@@ -10,6 +10,8 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import ChildDashboard from "./pages/ChildDashboard";
 import ParentDashboard from "./pages/ParentDashboard";
+import ProfileSelection from "./pages/ProfileSelection";
+import AddProfile from "./pages/AddProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +44,30 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route 
                 path="/" 
+                element={
+                  <ProtectedRoute>
+                    <Navigate to="/profiles" replace />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/profiles" 
+                element={
+                  <ProtectedRoute>
+                    <ProfileSelection />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/add-profile" 
+                element={
+                  <ProtectedRoute>
+                    <AddProfile />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/dashboard" 
                 element={
                   <ProtectedRoute>
                     <Index />

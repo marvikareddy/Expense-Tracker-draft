@@ -1,7 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, PiggyBank, Gift, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { 
+  DollarSign, 
+  PiggyBank, 
+  Gift, 
+  Loader2, 
+  Plus,
+  ArrowLeft
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
 import { childService, ChildExpense } from '@/services/childService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,8 +24,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const ChildDashboard = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { getCurrencySymbol } = useCurrency();
   const currencySymbol = getCurrencySymbol();
@@ -27,13 +43,24 @@ const ChildDashboard = () => {
   const [rewards, setRewards] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<ChildExpense[]>([]);
   
+  // New expense form state
+  const [newExpense, setNewExpense] = useState({
+    description: '',
+    amount: '',
+    category: 'Entertainment'
+  });
+  
+  // Get selected family profile from localStorage
+  const selectedProfile = localStorage.getItem('selectedProfile') 
+    ? JSON.parse(localStorage.getItem('selectedProfile')!)
+    : null;
+  
   useEffect(() => {
     const loadChildData = async () => {
-      if (user) {
+      if (user && selectedProfile) {
         setIsLoading(true);
         try {
-          // For now we use a mock childId
-          const childId = '1';
+          const childId = selectedProfile.id;
           const [pocket, savings, rewardsList, expensesList] = await Promise.all([
             childService.getPocketMoney(childId),
             childService.getSavingsGoal(childId),
@@ -54,32 +81,85 @@ const ChildDashboard = () => {
     };
     
     loadChildData();
-  }, [user]);
+  }, [user, selectedProfile]);
+  
+  // Navigate back to profiles
+  const handleBackToProfiles = () => {
+    navigate('/profiles');
+  };
 
   // Calculate savings percentage
   const savingsPercentage = savingsGoal.target > 0 
     ? (savingsGoal.current / savingsGoal.target * 100).toFixed(1) 
     : '0';
+  
+  // Handle new expense submission
+  const handleSubmitExpense = async () => {
+    if (!newExpense.description || !newExpense.amount || parseFloat(newExpense.amount) <= 0) {
+      return;
+    }
+    
+    try {
+      await childService.addExpense(
+        user?.id || '',
+        selectedProfile?.id,
+        {
+          description: newExpense.description,
+          amount: parseFloat(newExpense.amount),
+          category: newExpense.category,
+          date: new Date().toISOString().split('T')[0]
+        }
+      );
+      
+      // Reset form
+      setNewExpense({
+        description: '',
+        amount: '',
+        category: 'Entertainment'
+      });
+      
+      // Refresh expenses
+      const updatedExpenses = await childService.getExpenses(selectedProfile?.id);
+      setExpenses(updatedExpenses);
+    } catch (error) {
+      console.error("Error adding expense:", error);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-900">
       <Navigation />
-      <div className="container py-4">
-        <h1 className="text-3xl font-bold mb-6 text-textDark">Emma's Wallet</h1>
+      <div className="container py-6 text-white">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center">
+            <Button 
+              variant="ghost" 
+              className="mr-2 text-gray-300 hover:text-white"
+              onClick={handleBackToProfiles}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" /> 
+              Back to Profiles
+            </Button>
+            <h1 className="text-3xl font-bold">{selectedProfile?.name || 'Child'}'s Wallet</h1>
+          </div>
+          <Avatar className="w-10 h-10 bg-purple-600">
+            <AvatarFallback>{selectedProfile?.image || '👤'}</AvatarFallback>
+          </Avatar>
+        </div>
         
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pocket Money</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+        <div className="grid gap-4 md:grid-cols-3 mb-8">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-gray-700">
+              <CardTitle className="text-sm font-medium text-gray-200">Pocket Money</CardTitle>
+              <DollarSign className="h-4 w-4 text-gray-400" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               {isLoading ? (
-                <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-6 w-24 bg-gray-700" />
               ) : (
                 <>
                   <div className="text-2xl font-bold">{currencySymbol}{pocketMoney.toFixed(2)}</div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-gray-400">
                     Weekly allowance
                   </p>
                 </>
@@ -87,20 +167,22 @@ const ChildDashboard = () => {
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Savings Goal</CardTitle>
-              <PiggyBank className="h-4 w-4 text-muted-foreground" />
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-gray-700">
+              <CardTitle className="text-sm font-medium text-gray-200">Savings Goal</CardTitle>
+              <PiggyBank className="h-4 w-4 text-gray-400" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               {isLoading ? (
-                <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-6 w-24 bg-gray-700" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">
-                    {currencySymbol}{savingsGoal.current.toFixed(2)} / {currencySymbol}{savingsGoal.target.toFixed(2)}
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-300">{currencySymbol}{savingsGoal.current.toFixed(2)}</span>
+                    <span className="text-gray-300">{currencySymbol}{savingsGoal.target.toFixed(2)}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <Progress value={parseFloat(savingsPercentage)} className="h-2 bg-gray-700" />
+                  <p className="text-xs text-gray-400 mt-2">
                     {savingsPercentage}% saved for {savingsGoal.item}
                   </p>
                 </>
@@ -108,19 +190,19 @@ const ChildDashboard = () => {
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Rewards</CardTitle>
-              <Gift className="h-4 w-4 text-muted-foreground" />
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-gray-700">
+              <CardTitle className="text-sm font-medium text-gray-200">Rewards</CardTitle>
+              <Gift className="h-4 w-4 text-gray-400" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               {isLoading ? (
-                <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-6 w-24 bg-gray-700" />
               ) : (
                 <>
                   <div className="text-2xl font-bold">{rewards.length} Available</div>
-                  <p className="text-xs text-muted-foreground">
-                    Good job saving!
+                  <p className="text-xs text-gray-400">
+                    Great job saving!
                   </p>
                 </>
               )}
@@ -128,40 +210,157 @@ const ChildDashboard = () => {
           </Card>
         </div>
         
-        <div className="mt-8">
-          <h2 className="text-2xl font-semibold mb-4 text-textDark">Recent Expenses</h2>
-          <div className="bg-white rounded-lg shadow-md p-6">
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="grid gap-6 md:grid-cols-2 mb-6">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader className="border-b border-gray-700">
+              <div className="flex justify-between items-center">
+                <CardTitle>Recent Expenses</CardTitle>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+                      <Plus className="h-4 w-4 mr-1" /> New Expense
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-gray-800 text-white border-gray-700">
+                    <DialogHeader>
+                      <DialogTitle>Add New Expense</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div>
+                        <Label htmlFor="description" className="text-gray-300">Description</Label>
+                        <Input 
+                          id="description" 
+                          className="bg-gray-700 border-gray-600 text-white"
+                          placeholder="What did you spend on?"
+                          value={newExpense.description}
+                          onChange={(e) => setNewExpense({...newExpense, description: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="amount" className="text-gray-300">Amount</Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-2.5 text-gray-400">{currencySymbol}</span>
+                          <Input 
+                            id="amount" 
+                            className="bg-gray-700 border-gray-600 text-white pl-7"
+                            placeholder="0.00"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={newExpense.amount}
+                            onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="category" className="text-gray-300">Category</Label>
+                        <Select 
+                          value={newExpense.category} 
+                          onValueChange={(value) => setNewExpense({...newExpense, category: value})}
+                        >
+                          <SelectTrigger id="category" className="bg-gray-700 border-gray-600 text-white">
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-700 border-gray-600">
+                            <SelectItem value="Entertainment">Entertainment</SelectItem>
+                            <SelectItem value="Food">Food</SelectItem>
+                            <SelectItem value="Education">Education</SelectItem>
+                            <SelectItem value="Toys">Toys</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-3">
+                      <DialogClose asChild>
+                        <Button variant="outline" className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
+                          Cancel
+                        </Button>
+                      </DialogClose>
+                      <DialogClose asChild>
+                        <Button 
+                          className="bg-purple-600 hover:bg-purple-700" 
+                          onClick={handleSubmitExpense}
+                          disabled={!newExpense.description || !newExpense.amount || parseFloat(newExpense.amount) <= 0}
+                        >
+                          Add Expense
+                        </Button>
+                      </DialogClose>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
-            ) : expenses.length === 0 ? (
-              <p className="text-muted-foreground">No recent expenses</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {expenses.map(expense => (
-                    <TableRow key={expense.id}>
-                      <TableCell>{expense.date}</TableCell>
-                      <TableCell>{expense.description}</TableCell>
-                      <TableCell>{expense.category}</TableCell>
-                      <TableCell className="text-right">
-                        {currencySymbol}{expense.amount.toFixed(2)}
-                      </TableCell>
+            </CardHeader>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                </div>
+              ) : expenses.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-400">No expenses yet</p>
+                  <p className="text-sm text-gray-500">Add your first expense to track your spending</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-gray-700">
+                      <TableHead className="text-gray-400">Date</TableHead>
+                      <TableHead className="text-gray-400">Description</TableHead>
+                      <TableHead className="text-gray-400">Category</TableHead>
+                      <TableHead className="text-right text-gray-400">Amount</TableHead>
                     </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {expenses.map(expense => (
+                      <TableRow key={expense.id} className="border-gray-700">
+                        <TableCell className="text-gray-300">{expense.date}</TableCell>
+                        <TableCell className="text-gray-300">{expense.description}</TableCell>
+                        <TableCell className="text-gray-300">{expense.category}</TableCell>
+                        <TableCell className="text-right text-gray-300">
+                          {currencySymbol}{expense.amount.toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader className="border-b border-gray-700">
+              <CardTitle>My Rewards</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                </div>
+              ) : rewards.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-400">No rewards yet</p>
+                  <p className="text-sm text-gray-500">Keep saving to earn rewards</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-700">
+                  {rewards.map(reward => (
+                    <div key={reward.id} className="p-4 hover:bg-gray-750 transition-colors">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="text-gray-200 font-medium">{reward.name}</h4>
+                          <p className="text-sm text-gray-400">{reward.description}</p>
+                        </div>
+                        <Button variant="outline" size="sm" className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
+                          Redeem
+                        </Button>
+                      </div>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

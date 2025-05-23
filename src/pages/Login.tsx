@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,7 @@ import { authService } from '@/services/authService';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { motion } from "@/components/ui/motion";
 
 const Login = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -16,6 +17,17 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Check if already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        navigate('/profiles');
+      }
+    };
+    checkSession();
+  }, [navigate]);
 
   // Function to clean up auth state
   const cleanupAuthState = () => {
@@ -67,8 +79,8 @@ const Login = () => {
             title: "Login successful",
             description: "Welcome back!"
           });
-          // Force page reload to ensure fresh state
-          window.location.href = '/';
+          // Navigate to profile selection
+          navigate('/profiles');
         } else {
           toast({
             variant: "destructive",
@@ -89,58 +101,100 @@ const Login = () => {
     }
   };
 
-  return <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="bg-white shadow-md rounded-lg p-8 max-w-md w-full">
-        <div className="text-center mb-6">
-          <ShieldCheck className="mx-auto h-12 w-12 text-primary mb-4" />
-          <h1 className="text-3xl font-bold text-textDark">ExpenSmart</h1>
-          <p className="text-muted-foreground mt-2">
-            Track and manage your expenses with ease
+  return (
+    <motion.div 
+      className="min-h-screen bg-[#141414] flex items-center justify-center p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      <motion.div 
+        className="bg-gray-800 shadow-lg rounded-lg p-8 max-w-md w-full"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.5 }}
+      >
+        <div className="text-center mb-8">
+          <ShieldCheck className="mx-auto h-16 w-16 text-purple-500 mb-4" />
+          <h1 className="text-4xl font-bold text-white mb-2">ExpenSmart</h1>
+          <p className="text-gray-400">
+            Family-focused financial management
           </p>
         </div>
         
-        <form className="space-y-4" onSubmit={handleAuth}>
+        <form className="space-y-6" onSubmit={handleAuth}>
           <div>
-            <Label htmlFor="email" className="flex items-center">
-              <User className="mr-2 h-4 w-4 text-muted-foreground" />
+            <Label htmlFor="email" className="flex items-center text-gray-300">
+              <User className="mr-2 h-4 w-4 text-gray-400" />
               Email
             </Label>
-            <Input id="email" type="email" placeholder="Enter your email" className="mt-2" value={email} onChange={e => setEmail(e.target.value)} required />
+            <Input 
+              id="email" 
+              type="email" 
+              placeholder="Enter your email" 
+              className="mt-2 bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus:ring-purple-500 focus:border-purple-500" 
+              value={email} 
+              onChange={e => setEmail(e.target.value)} 
+              required 
+            />
           </div>
           
           <div>
-            <Label htmlFor="password" className="flex items-center">
-              <Lock className="mr-2 h-4 w-4 text-muted-foreground" />
+            <Label htmlFor="password" className="flex items-center text-gray-300">
+              <Lock className="mr-2 h-4 w-4 text-gray-400" />
               Password
             </Label>
-            <Input id="password" type="password" placeholder="Enter your password" className="mt-2" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
+            <Input 
+              id="password" 
+              type="password" 
+              placeholder="Enter your password" 
+              className="mt-2 bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus:ring-purple-500 focus:border-purple-500" 
+              value={password} 
+              onChange={e => setPassword(e.target.value)} 
+              required 
+              minLength={6} 
+            />
           </div>
           
-          {!isSignUp && <div className="flex justify-between items-center">
-              <Label className="flex items-center">
-                <input type="checkbox" className="mr-2 rounded text-primary focus:ring-primary" />
+          {!isSignUp && (
+            <div className="flex justify-between items-center">
+              <Label className="flex items-center text-gray-300">
+                <input 
+                  type="checkbox" 
+                  className="mr-2 rounded text-purple-600 focus:ring-purple-500 bg-gray-700 border-gray-600" 
+                />
                 Remember me
               </Label>
-              <a href="#" className="text-primary text-sm hover:underline">
+              <a href="#" className="text-purple-400 text-sm hover:underline">
                 Forgot Password?
               </a>
-            </div>}
+            </div>
+          )}
           
-          <Button className="w-full bg-primary hover:bg-primary/90" type="submit" disabled={isLoading}>
+          <Button 
+            className="w-full bg-purple-600 hover:bg-purple-700 py-5" 
+            type="submit" 
+            disabled={isLoading}
+          >
             {isLoading ? 'Processing...' : isSignUp ? 'Sign Up' : 'Login'}
           </Button>
           
           <div className="text-center">
-            <p className="text-sm text-muted-foreground mt-4">
+            <p className="text-sm text-gray-400 mt-4">
               {isSignUp ? 'Already have an account?' : "Don't have an account?"}
-              <button type="button" className="text-primary ml-1 hover:underline" onClick={() => setIsSignUp(!isSignUp)}>
+              <button 
+                type="button" 
+                className="text-purple-400 ml-1 hover:underline" 
+                onClick={() => setIsSignUp(!isSignUp)}
+              >
                 {isSignUp ? 'Login' : 'Sign Up'}
               </button>
             </p>
           </div>
         </form>
-      </div>
-    </div>;
+      </motion.div>
+    </motion.div>
+  );
 };
 
 export default Login;

@@ -29,8 +29,11 @@ export function useCurrencyConversion() {
         const rate = await exchangeRateService.getRate(fromCurrency, targetCurrency);
         
         if (rate === null) {
+          console.error(`Could not get exchange rate for ${fromCurrency} to ${targetCurrency}`);
           throw new Error(`Could not get exchange rate for ${fromCurrency} to ${targetCurrency}`);
         }
+        
+        console.log(`Conversion rate from ${fromCurrency} to ${targetCurrency}: ${rate}`);
         
         // Cache the rate
         setRates((prevRates) => ({
@@ -38,7 +41,9 @@ export function useCurrencyConversion() {
           [rateKey]: rate,
         }));
         
-        return amount * rate;
+        const convertedAmount = amount * rate;
+        console.log(`Converted ${amount} ${fromCurrency} to ${convertedAmount} ${targetCurrency}`);
+        return convertedAmount;
       } catch (error) {
         console.error('Error converting currency:', error);
         toast({

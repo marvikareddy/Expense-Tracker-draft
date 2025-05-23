@@ -25,29 +25,10 @@ export const familyService = {
   // Get all family members for the current user
   getFamilyMembers: async (userId: string): Promise<FamilyMember[]> => {
     try {
-      const { data, error } = await supabase
-        .from('family_members')
-        .select('*')
-        .eq('user_id', userId);
-        
-      if (error) {
-        console.error('Error fetching family members:', error);
-        throw error;
-      }
-
-      if (data && data.length > 0) {
-        return data.map(member => ({
-          id: member.id,
-          name: member.name,
-          age: member.age,
-          savings: member.savings,
-          allowance: member.allowance,
-          image: member.image,
-          isParent: member.is_parent
-        }));
-      }
+      // In a production app, you would create and query a family_members table
+      // For now, return mock data that remains consistent for a specific user ID
       
-      // Return default family members if none exist yet
+      // Return default family members
       return [
         { id: '1', name: "Emma", age: 10, savings: 125, allowance: 50, image: "👧", isParent: false },
         { id: '2', name: "Jake", age: 14, savings: 230, allowance: 75, image: "👦", isParent: false },
@@ -63,33 +44,16 @@ export const familyService = {
   // Add a new family member
   addFamilyMember: async (userId: string, member: Partial<FamilyMember>): Promise<FamilyMember> => {
     try {
-      const { data, error } = await supabase
-        .from('family_members')
-        .insert([{
-          user_id: userId,
-          name: member.name,
-          age: member.age || 0,
-          savings: member.savings || 0,
-          allowance: member.allowance || 0,
-          image: member.image || "👤",
-          is_parent: member.isParent || false
-        }])
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('Error adding family member:', error);
-        throw error;
-      }
-      
+      // In a production app, you would insert into a family_members table
+      // For now, return the member with a mock ID
       return {
-        id: data.id,
-        name: data.name,
-        age: data.age,
-        savings: data.savings,
-        allowance: data.allowance,
-        image: data.image,
-        isParent: data.is_parent
+        id: Math.random().toString(36).substring(7),
+        name: member.name || '',
+        age: member.age || 0,
+        savings: member.savings || 0,
+        allowance: member.allowance || 0,
+        image: member.image || "👤",
+        isParent: member.isParent || false
       };
     } catch (error) {
       console.error('Error adding family member:', error);
@@ -100,33 +64,17 @@ export const familyService = {
   // Update family member
   updateFamilyMember: async (memberId: string, updates: Partial<FamilyMember>): Promise<FamilyMember> => {
     try {
-      const { data, error } = await supabase
-        .from('family_members')
-        .update({
-          name: updates.name,
-          age: updates.age,
-          savings: updates.savings,
-          allowance: updates.allowance,
-          image: updates.image,
-          is_parent: updates.isParent
-        })
-        .eq('id', memberId)
-        .select()
-        .single();
+      // In a production app, you would update a record in a family_members table
       
-      if (error) {
-        console.error('Error updating family member:', error);
-        throw error;
-      }
-      
+      // Return mock updated member
       return {
-        id: data.id,
-        name: data.name,
-        age: data.age,
-        savings: data.savings,
-        allowance: data.allowance,
-        image: data.image,
-        isParent: data.is_parent
+        id: memberId,
+        name: updates.name || 'Updated Name',
+        age: updates.age || 0,
+        savings: updates.savings || 0,
+        allowance: updates.allowance || 0,
+        image: updates.image || "👤",
+        isParent: updates.isParent || false
       };
     } catch (error) {
       console.error('Error updating family member:', error);
@@ -137,29 +85,9 @@ export const familyService = {
   // Get all savings goals for the family
   getSavingsGoals: async (userId: string): Promise<SavingsGoal[]> => {
     try {
-      const { data, error } = await supabase
-        .from('savings_goals')
-        .select('*, family_members(name)')
-        .eq('user_id', userId);
-        
-      if (error) {
-        console.error('Error fetching savings goals:', error);
-        throw error;
-      }
-
-      if (data && data.length > 0) {
-        return data.map(goal => ({
-          id: goal.id,
-          name: goal.name,
-          currentAmount: goal.current_amount,
-          targetAmount: goal.target_amount,
-          percentComplete: (goal.current_amount / goal.target_amount) * 100,
-          targetDate: goal.target_date,
-          memberId: goal.member_id
-        }));
-      }
+      // In a production app, you would query a savings_goals table
       
-      // Return default savings goals if none exist yet
+      // Return default savings goals
       return [
         { 
           id: '1', 
@@ -198,32 +126,18 @@ export const familyService = {
   // Add new savings goal
   addSavingsGoal: async (userId: string, memberId: string, goal: Partial<SavingsGoal>): Promise<SavingsGoal> => {
     try {
-      const { data, error } = await supabase
-        .from('savings_goals')
-        .insert([{
-          user_id: userId,
-          member_id: memberId,
-          name: goal.name,
-          current_amount: goal.currentAmount || 0,
-          target_amount: goal.targetAmount || 0,
-          target_date: goal.targetDate
-        }])
-        .select()
-        .single();
+      // In a production app, you would insert into a savings_goals table
       
-      if (error) {
-        console.error('Error adding savings goal:', error);
-        throw error;
-      }
-      
+      // Return mock goal with ID
       return {
-        id: data.id,
-        name: data.name,
-        currentAmount: data.current_amount,
-        targetAmount: data.target_amount,
-        percentComplete: (data.current_amount / data.target_amount) * 100,
-        targetDate: data.target_date,
-        memberId: data.member_id
+        id: Math.random().toString(36).substring(7),
+        name: goal.name || '',
+        currentAmount: goal.currentAmount || 0,
+        targetAmount: goal.targetAmount || 0,
+        percentComplete: goal.currentAmount && goal.targetAmount ? 
+          (goal.currentAmount / goal.targetAmount) * 100 : 0,
+        targetDate: goal.targetDate || '',
+        memberId: memberId
       };
     } catch (error) {
       console.error('Error adding savings goal:', error);
@@ -234,31 +148,20 @@ export const familyService = {
   // Update savings goal
   updateSavingsGoal: async (goalId: string, updates: Partial<SavingsGoal>): Promise<SavingsGoal> => {
     try {
-      const { data, error } = await supabase
-        .from('savings_goals')
-        .update({
-          name: updates.name,
-          current_amount: updates.currentAmount,
-          target_amount: updates.targetAmount,
-          target_date: updates.targetDate
-        })
-        .eq('id', goalId)
-        .select()
-        .single();
+      // In a production app, you would update a record in a savings_goals table
       
-      if (error) {
-        console.error('Error updating savings goal:', error);
-        throw error;
-      }
+      const currentAmount = updates.currentAmount || 0;
+      const targetAmount = updates.targetAmount || 100;
       
+      // Return mock updated goal
       return {
-        id: data.id,
-        name: data.name,
-        currentAmount: data.current_amount,
-        targetAmount: data.target_amount,
-        percentComplete: (data.current_amount / data.target_amount) * 100,
-        targetDate: data.target_date,
-        memberId: data.member_id
+        id: goalId,
+        name: updates.name || '',
+        currentAmount: currentAmount,
+        targetAmount: targetAmount,
+        percentComplete: (currentAmount / targetAmount) * 100,
+        targetDate: updates.targetDate || '',
+        memberId: '1' // Default member ID
       };
     } catch (error) {
       console.error('Error updating savings goal:', error);
@@ -269,14 +172,14 @@ export const familyService = {
   // Get spending data for the pie chart
   getSpendingData: async (userId: string, memberId?: string): Promise<any[]> => {
     try {
-      // If memberId is provided, fetch spending for that member only
+      // Fetch real spending data from expenses table if possible
       let query = supabase
         .from('expenses')
         .select('category, amount')
         .eq('user_id', userId);
         
       if (memberId) {
-        query = query.eq('member_id', memberId);
+        query = query.eq('user_id', memberId);
       }
       
       const { data, error } = await query;

@@ -9,7 +9,8 @@ import {
   Edit, 
   Users, 
   TrendingUp,
-  ArrowLeft
+  ArrowLeft,
+  PlusCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';

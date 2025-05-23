@@ -8,7 +8,8 @@ import {
   Gift, 
   Loader2, 
   Plus,
-  ArrowLeft
+  ArrowLeft,
+  PlusCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
@@ -42,6 +43,7 @@ const ChildDashboard = () => {
   const [savingsGoal, setSavingsGoal] = useState({ current: 0, target: 0, item: '' });
   const [rewards, setRewards] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<ChildExpense[]>([]);
+  const [isAddingExpense, setIsAddingExpense] = useState(false);
   
   // New expense form state
   const [newExpense, setNewExpense] = useState({
@@ -100,6 +102,7 @@ const ChildDashboard = () => {
     }
     
     try {
+      setIsAddingExpense(true);
       await childService.addExpense(
         user?.id || '',
         selectedProfile?.id,
@@ -123,6 +126,8 @@ const ChildDashboard = () => {
       setExpenses(updatedExpenses);
     } catch (error) {
       console.error("Error adding expense:", error);
+    } finally {
+      setIsAddingExpense(false);
     }
   };
 
@@ -175,6 +180,8 @@ const ChildDashboard = () => {
             <CardContent className="pt-4">
               {isLoading ? (
                 <Skeleton className="h-6 w-24 bg-gray-700" />
+              ) : savingsGoal.target <= 0 ? (
+                <div className="text-gray-400 text-sm">No savings goal set yet</div>
               ) : (
                 <>
                   <div className="flex justify-between text-sm mb-1">
@@ -218,7 +225,7 @@ const ChildDashboard = () => {
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
-                      <Plus className="h-4 w-4 mr-1" /> New Expense
+                      <PlusCircle className="h-4 w-4 mr-1" /> New Expense
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="bg-gray-800 text-white border-gray-700">
@@ -281,8 +288,11 @@ const ChildDashboard = () => {
                         <Button 
                           className="bg-purple-600 hover:bg-purple-700" 
                           onClick={handleSubmitExpense}
-                          disabled={!newExpense.description || !newExpense.amount || parseFloat(newExpense.amount) <= 0}
+                          disabled={isAddingExpense || !newExpense.description || !newExpense.amount || parseFloat(newExpense.amount) <= 0}
                         >
+                          {isAddingExpense ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : null}
                           Add Expense
                         </Button>
                       </DialogClose>

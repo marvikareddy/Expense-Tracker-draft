@@ -1,82 +1,100 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
 import { 
-  PiggyBank, 
   DollarSign, 
-  Plus, 
-  Edit, 
+  ArrowRight, 
   Users, 
-  TrendingUp,
+  PiggyBank, 
+  Clock, 
   ArrowLeft,
-  PlusCircle
+  PlusCircle,
+  CreditCard,
+  Loader2
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { 
+  PieChart, 
+  Pie, 
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  Legend
+} from 'recharts';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import Navigation from '@/components/Navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCurrency } from '@/contexts/CurrencyContext';
-import { familyService, FamilyMember, SavingsGoal } from '@/services/familyService';
-import { childService, ChildExpense } from '@/services/childService';
+import { familyService } from '@/services/familyService';
+import { useToast } from '@/hooks/use-toast';
 
 const ParentDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { getCurrencySymbol } = useCurrency();
+  const { currency, getCurrencySymbol } = useCurrency();
   const currencySymbol = getCurrencySymbol();
+  const { toast } = useToast();
   
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedChild, setSelectedChild] = useState<string | null>(null);
-  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
-  const [children, setChildren] = useState<FamilyMember[]>([]);
-  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
-  const [expenses, setExpenses] = useState<ChildExpense[]>([]);
+  const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+  const [childMembers, setChildMembers] = useState<any[]>([]);
   const [spendingData, setSpendingData] = useState<any[]>([]);
+  const [savingsGoals, setSavingsGoals] = useState<any[]>([]);
+  const [totalBudget, setTotalBudget] = useState(1000); // Default budget
+  const [currentSpending, setCurrentSpending] = useState(0);
+  
+  // Selected member for adding funds
+  const [selectedMember, setSelectedMember] = useState<any>(null);
+  const [fundAmount, setFundAmount] = useState('');
+  
+  // New goal state
+  const [goalMember, setGoalMember] = useState<string>('');
+  const [goalName, setGoalName] = useState('');
+  const [goalAmount, setGoalAmount] = useState('');
+  const [goalDate, setGoalDate] = useState('');
+  const [isAddingGoal, setIsAddingGoal] = useState(false);
+  
+  const [isAddingFunds, setIsAddingFunds] = useState(false);
 
   // Get selected family profile from localStorage
   const selectedProfile = localStorage.getItem('selectedProfile') 
     ? JSON.parse(localStorage.getItem('selectedProfile')!)
     : null;
-
+  
   useEffect(() => {
     const loadData = async () => {
       if (user) {
         setIsLoading(true);
         try {
-          // Fetch all data
+          // Load family members and filter children
           const members = await familyService.getFamilyMembers(user.id);
-          const goals = await familyService.getSavingsGoals(user.id);
-          const spending = await familyService.getSpendingData(user.id);
-          
           setFamilyMembers(members);
-          setSavingsGoals(goals);
+          setChildMembers(members.filter(member => !member.isParent));
+          
+          // Load spending data for pie chart
+          const spending = await familyService.getSpendingData(user.id);
           setSpendingData(spending);
           
-          // Filter out children
-          const childrenOnly = members.filter(member => !member.isParent);
-          setChildren(childrenOnly);
+          // Calculate current spending
+          const totalSpent = spending.reduce((sum, item) => sum + item.value, 0);
+          setCurrentSpending(totalSpent);
           
-          // Set the first child as selected if any exist
-          if (childrenOnly.length > 0 && !selectedChild) {
-            setSelectedChild(childrenOnly[0].id);
-            const childExpenses = await childService.getExpenses(childrenOnly[0].id);
-            setExpenses(childExpenses);
-          }
+          // Load savings goals
+          const goals = await familyService.getSavingsGoals(user.id);
+          setSavingsGoals(goals);
         } catch (error) {
-          console.error("Error loading data:", error);
+          console.error("Error loading dashboard data:", error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to load dashboard data."
+          });
         } finally {
           setIsLoading(false);
         }
@@ -84,28 +102,109 @@ const ParentDashboard = () => {
     };
     
     loadData();
-  }, [user]);
-
-  // Handle child selection change
-  const handleChildChange = async (childId: string) => {
-    setSelectedChild(childId);
-    try {
-      const childExpenses = await childService.getExpenses(childId);
-      setExpenses(childExpenses);
-    } catch (error) {
-      console.error("Error loading child expenses:", error);
-    }
-  };
-
-  // Get goal for a specific member
-  const getMemberGoal = (memberId: string) => {
-    return savingsGoals.find(goal => goal.memberId === memberId);
-  };
-
+  }, [user, toast]);
+  
   // Navigate back to profiles
   const handleBackToProfiles = () => {
     navigate('/profiles');
   };
+  
+  // Handle adding funds to a child's account
+  const handleAddFunds = async () => {
+    if (!selectedMember || !fundAmount || parseFloat(fundAmount) <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please select a family member and enter a valid amount."
+      });
+      return;
+    }
+    
+    try {
+      setIsAddingFunds(true);
+      await familyService.addFunds(selectedMember.id, parseFloat(fundAmount));
+      
+      // Refresh family members to update balances
+      const updatedMembers = await familyService.getFamilyMembers(user?.id || '');
+      setFamilyMembers(updatedMembers);
+      setChildMembers(updatedMembers.filter(member => !member.isParent));
+      
+      toast({
+        title: "Success",
+        description: `Added ${currencySymbol}${fundAmount} to ${selectedMember.name}'s account.`
+      });
+      
+      // Reset inputs
+      setSelectedMember(null);
+      setFundAmount('');
+    } catch (error) {
+      console.error("Error adding funds:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to add funds. Please try again."
+      });
+    } finally {
+      setIsAddingFunds(false);
+    }
+  };
+  
+  // Handle creating new savings goal
+  const handleCreateGoal = async () => {
+    if (!goalMember || !goalName || !goalAmount || parseFloat(goalAmount) <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please fill out all fields with valid values."
+      });
+      return;
+    }
+    
+    try {
+      setIsAddingGoal(true);
+      
+      await familyService.addSavingsGoal(
+        user?.id || '',
+        goalMember,
+        {
+          name: goalName,
+          targetAmount: parseFloat(goalAmount),
+          currentAmount: 0,
+          targetDate: goalDate,
+          percentComplete: 0,
+          memberId: goalMember,
+          id: ''
+        }
+      );
+      
+      // Refresh savings goals
+      const updatedGoals = await familyService.getSavingsGoals(user?.id || '');
+      setSavingsGoals(updatedGoals);
+      
+      toast({
+        title: "Success",
+        description: `Created new savings goal for ${childMembers.find(m => m.id === goalMember)?.name}.`
+      });
+      
+      // Reset inputs
+      setGoalMember('');
+      setGoalName('');
+      setGoalAmount('');
+      setGoalDate('');
+    } catch (error) {
+      console.error("Error creating savings goal:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to create savings goal. Please try again."
+      });
+    } finally {
+      setIsAddingGoal(false);
+    }
+  };
+
+  // Calculate budget percentage used
+  const budgetUsedPercentage = totalBudget > 0 ? (currentSpending / totalBudget) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -121,299 +220,501 @@ const ParentDashboard = () => {
               <ArrowLeft className="h-4 w-4 mr-2" /> 
               Back to Profiles
             </Button>
-            <h1 className="text-3xl font-bold">Parent Dashboard</h1>
+            <h1 className="text-3xl font-bold">Family Dashboard</h1>
           </div>
-          <div className="flex items-center space-x-2">
-            <span className="text-gray-300">Welcome, {selectedProfile?.name || 'Parent'}</span>
+          {selectedProfile && (
             <Avatar className="w-10 h-10 bg-purple-600">
-              <AvatarFallback>{selectedProfile?.image || '👤'}</AvatarFallback>
+              <AvatarFallback>{selectedProfile.image}</AvatarFallback>
             </Avatar>
-          </div>
+          )}
         </div>
         
-        <div className="grid gap-6 md:grid-cols-3 mb-6">
+        <div className="grid gap-4 md:grid-cols-3 mb-8">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-gray-700">
+              <CardTitle className="text-sm font-medium text-gray-200">Family Budget</CardTitle>
+              <DollarSign className="h-4 w-4 text-gray-400" />
+            </CardHeader>
+            <CardContent className="pt-4">
+              {isLoading ? (
+                <div className="animate-pulse space-y-2">
+                  <div className="h-6 w-24 bg-gray-700 rounded"></div>
+                  <div className="h-2 w-full bg-gray-700 rounded"></div>
+                  <div className="h-4 w-16 bg-gray-700 rounded"></div>
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{currencySymbol}{totalBudget.toFixed(2)}</div>
+                  <div className="mt-1 space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-400">Spent: {currencySymbol}{currentSpending.toFixed(2)}</span>
+                      <span className="text-gray-400">{budgetUsedPercentage.toFixed(0)}%</span>
+                    </div>
+                    <Progress value={budgetUsedPercentage} className="h-2 bg-gray-700" />
+                  </div>
+                </>
+              )}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="mt-4 px-0 text-purple-400 hover:text-purple-300">
+                    Edit Budget <ArrowRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-gray-800 text-white border-gray-700">
+                  <DialogHeader>
+                    <DialogTitle>Update Monthly Budget</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="budget" className="text-gray-300">Budget Amount</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-gray-400">{currencySymbol}</span>
+                        <Input 
+                          id="budget" 
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="pl-7 bg-gray-700 border-gray-600 text-white"
+                          value={totalBudget}
+                          onChange={(e) => setTotalBudget(parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <DialogClose asChild>
+                      <Button className="bg-purple-600 hover:bg-purple-700">
+                        Save Changes
+                      </Button>
+                    </DialogClose>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </CardContent>
+          </Card>
+          
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-gray-700">
               <CardTitle className="text-sm font-medium text-gray-200">Family Members</CardTitle>
               <Users className="h-4 w-4 text-gray-400" />
             </CardHeader>
             <CardContent className="pt-4">
-              <div className="text-2xl font-bold mb-2">{familyMembers.length}</div>
-              <div className="flex -space-x-3">
-                {familyMembers.map((member, index) => (
-                  <Avatar key={member.id} className={`w-9 h-9 border-2 ${member.isParent ? 'border-purple-500' : 'border-blue-400'}`}>
-                    <AvatarFallback className="bg-gray-700 text-white">{member.image}</AvatarFallback>
-                  </Avatar>
-                ))}
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <div className="w-9 h-9 flex items-center justify-center rounded-full border-2 border-dashed border-gray-600 cursor-pointer hover:border-purple-500 transition-colors">
-                      <Plus className="h-4 w-4 text-gray-400" />
-                    </div>
-                  </DialogTrigger>
-                  <DialogContent className="bg-gray-800 text-white border-gray-700">
-                    <DialogHeader>
-                      <DialogTitle>Add Family Member</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4">
-                      <Button 
-                        className="w-full bg-purple-600 hover:bg-purple-700"
-                        onClick={() => navigate('/add-profile')}
-                      >
-                        <Plus className="mr-2 h-4 w-4" /> Add Profile
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
+              {isLoading ? (
+                <div className="animate-pulse space-y-2">
+                  <div className="h-6 w-24 bg-gray-700 rounded"></div>
+                  <div className="h-4 w-32 bg-gray-700 rounded"></div>
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{familyMembers.length}</div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    {childMembers.length} {childMembers.length === 1 ? 'child' : 'children'} · {familyMembers.length - childMembers.length} {familyMembers.length - childMembers.length === 1 ? 'parent' : 'parents'}
+                  </div>
+                </>
+              )}
+              <Button variant="ghost" size="sm" className="mt-4 px-0 text-purple-400 hover:text-purple-300" onClick={() => navigate('/add-profile')}>
+                Add Member <ArrowRight className="ml-1 h-4 w-4" />
+              </Button>
             </CardContent>
           </Card>
           
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-gray-700">
-              <CardTitle className="text-sm font-medium text-gray-200">Total Savings</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-200">Savings Goals</CardTitle>
               <PiggyBank className="h-4 w-4 text-gray-400" />
             </CardHeader>
             <CardContent className="pt-4">
-              <div className="text-2xl font-bold">
-                {currencySymbol}{familyMembers.reduce((total, member) => total + member.savings, 0).toFixed(2)}
-              </div>
-              <p className="text-xs text-gray-400 mt-1">
-                {children.length} active saving goals
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-gray-700">
-              <CardTitle className="text-sm font-medium text-gray-200">Monthly Allowances</CardTitle>
-              <DollarSign className="h-4 w-4 text-gray-400" />
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="text-2xl font-bold">
-                {currencySymbol}{children.reduce((total, child) => total + child.allowance, 0).toFixed(2)}
-              </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Total monthly budget for kids
-              </p>
+              {isLoading ? (
+                <div className="animate-pulse space-y-2">
+                  <div className="h-6 w-24 bg-gray-700 rounded"></div>
+                  <div className="h-4 w-32 bg-gray-700 rounded"></div>
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{savingsGoals.length}</div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    {savingsGoals.filter(goal => goal.percentComplete >= 100).length} completed
+                  </div>
+                </>
+              )}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="mt-4 px-0 text-purple-400 hover:text-purple-300">
+                    Create Goal <ArrowRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-gray-800 text-white border-gray-700">
+                  <DialogHeader>
+                    <DialogTitle>Create New Savings Goal</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div>
+                      <Label htmlFor="goal-member" className="text-gray-300">Child</Label>
+                      <Select value={goalMember} onValueChange={setGoalMember}>
+                        <SelectTrigger id="goal-member" className="bg-gray-700 border-gray-600 text-white">
+                          <SelectValue placeholder="Select a child" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-700 border-gray-600">
+                          {childMembers.map(member => (
+                            <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="goal-name" className="text-gray-300">Goal Name</Label>
+                      <Input 
+                        id="goal-name" 
+                        value={goalName}
+                        onChange={(e) => setGoalName(e.target.value)}
+                        className="bg-gray-700 border-gray-600 text-white"
+                        placeholder="e.g., New Bike, Game Console"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="goal-amount" className="text-gray-300">Target Amount</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-gray-400">{currencySymbol}</span>
+                        <Input 
+                          id="goal-amount" 
+                          value={goalAmount}
+                          onChange={(e) => setGoalAmount(e.target.value)}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="pl-7 bg-gray-700 border-gray-600 text-white"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="goal-date" className="text-gray-300">Target Date (Optional)</Label>
+                      <Input 
+                        id="goal-date" 
+                        value={goalDate}
+                        onChange={(e) => setGoalDate(e.target.value)}
+                        className="bg-gray-700 border-gray-600 text-white"
+                        placeholder="e.g., December 2023"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <DialogClose asChild>
+                      <Button variant="outline" className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
+                        Cancel
+                      </Button>
+                    </DialogClose>
+                    <Button 
+                      className="bg-purple-600 hover:bg-purple-700"
+                      onClick={handleCreateGoal}
+                      disabled={isAddingGoal || !goalMember || !goalName || !goalAmount}
+                    >
+                      {isAddingGoal ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      Create Goal
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </div>
         
-        <Tabs defaultValue="children" className="mt-8">
-          <TabsList className="bg-gray-800 border-gray-700">
-            <TabsTrigger value="children">Children</TabsTrigger>
-            <TabsTrigger value="spending">Family Spending</TabsTrigger>
-            <TabsTrigger value="goals">Savings Goals</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="children" className="mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Select Child</h3>
-                {children.map((child) => (
-                  <Card 
-                    key={child.id} 
-                    className={`cursor-pointer transition-colors ${
-                      selectedChild === child.id 
-                        ? 'bg-purple-900 border-purple-500' 
-                        : 'bg-gray-800 border-gray-700 hover:bg-gray-700'
-                    }`}
-                    onClick={() => handleChildChange(child.id)}
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 mb-6">
+          <Card className="lg:col-span-2 bg-gray-800 border-gray-700">
+            <CardHeader className="border-b border-gray-700">
+              <CardTitle>Family Members</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="flex justify-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                </div>
+              ) : childMembers.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-400">No child accounts yet</p>
+                  <p className="text-sm text-gray-500 mt-2 mb-4">Add a child account to start tracking their expenses</p>
+                  <Button 
+                    className="bg-purple-600 hover:bg-purple-700"
+                    onClick={() => navigate('/add-profile')}
                   >
-                    <CardContent className="flex items-center p-4">
-                      <Avatar className="w-12 h-12 mr-4">
-                        <AvatarFallback className="bg-purple-600 text-xl">{child.image}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h4 className="font-medium">{child.name}</h4>
-                        <p className="text-sm text-gray-400">Age: {child.age}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              
-              {selectedChild && (
-                <>
-                  <Card className="bg-gray-800 border-gray-700 md:col-span-2">
-                    <CardHeader className="border-b border-gray-700">
-                      <CardTitle>
-                        {children.find(c => c.id === selectedChild)?.name}'s Dashboard
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <div className="bg-gray-700 p-4 rounded-md">
-                          <h4 className="text-sm text-gray-300 mb-1">Pocket Money</h4>
-                          <div className="text-2xl font-bold">
-                            {currencySymbol}{children.find(c => c.id === selectedChild)?.allowance.toFixed(2)}/week
-                          </div>
-                          <Button size="sm" variant="outline" className="mt-2 bg-transparent border-gray-600 text-gray-300 hover:bg-gray-600 hover:text-white">
-                            <Edit className="h-3 w-3 mr-1" /> Adjust
-                          </Button>
-                        </div>
-                        
-                        <div className="bg-gray-700 p-4 rounded-md">
-                          <h4 className="text-sm text-gray-300 mb-1">Savings</h4>
-                          <div className="text-2xl font-bold">
-                            {currencySymbol}{children.find(c => c.id === selectedChild)?.savings.toFixed(2)}
-                          </div>
-                          <Button size="sm" variant="outline" className="mt-2 bg-transparent border-gray-600 text-gray-300 hover:bg-gray-600 hover:text-white">
-                            <Plus className="h-3 w-3 mr-1" /> Add Funds
-                          </Button>
+                    <PlusCircle className="h-4 w-4 mr-2" /> Add Child Account
+                  </Button>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-700">
+                  {childMembers.map(child => (
+                    <div key={child.id} className="p-4 flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Avatar className="h-10 w-10 mr-4">
+                          {child.image.startsWith('http') ? (
+                            <AvatarImage src={child.image} />
+                          ) : (
+                            <AvatarFallback className="bg-purple-600 text-white">
+                              {child.image}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div>
+                          <h3 className="font-medium text-white">{child.name}</h3>
+                          <p className="text-sm text-gray-400">Age: {child.age}</p>
                         </div>
                       </div>
-                      
-                      {getMemberGoal(selectedChild) && (
-                        <div className="mb-6">
-                          <h4 className="text-sm text-gray-300 mb-2">Savings Goal: {getMemberGoal(selectedChild)?.name}</h4>
-                          <div className="flex justify-between text-xs mb-1">
-                            <span>{currencySymbol}{getMemberGoal(selectedChild)?.currentAmount.toFixed(2)}</span>
-                            <span>{currencySymbol}{getMemberGoal(selectedChild)?.targetAmount.toFixed(2)}</span>
-                          </div>
-                          <Progress value={getMemberGoal(selectedChild)?.percentComplete || 0} className="h-2 bg-gray-700" />
-                          <div className="mt-1 text-xs text-gray-400">
-                            {getMemberGoal(selectedChild)?.percentComplete.toFixed(0)}% towards goal
-                          </div>
+                      <div className="flex flex-col items-end">
+                        <div className="font-medium text-white mb-1">
+                          {currencySymbol}{child.savings.toFixed(2)}
                         </div>
-                      )}
-                      
-                      <h4 className="text-sm text-gray-300 mb-2">Recent Expenses</h4>
-                      {expenses.length > 0 ? (
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="border-gray-700">
-                              <TableHead className="text-gray-400">Date</TableHead>
-                              <TableHead className="text-gray-400">Description</TableHead>
-                              <TableHead className="text-right text-gray-400">Amount</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {expenses.slice(0, 5).map((expense) => (
-                              <TableRow key={expense.id} className="border-gray-700">
-                                <TableCell className="text-gray-300">{expense.date}</TableCell>
-                                <TableCell className="text-gray-300">{expense.description}</TableCell>
-                                <TableCell className="text-right text-gray-300">
-                                  {currencySymbol}{expense.amount.toFixed(2)}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      ) : (
-                        <p className="text-gray-400 text-sm">No expenses recorded</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </>
+                        <div className="flex space-x-2">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white h-8">
+                                <CreditCard className="h-3.5 w-3.5 mr-1" /> Add Funds
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="bg-gray-800 text-white border-gray-700">
+                              <DialogHeader>
+                                <DialogTitle>Add Funds to {child.name}'s Account</DialogTitle>
+                              </DialogHeader>
+                              <div className="grid gap-4 py-4">
+                                <div>
+                                  <Label htmlFor="fund-amount" className="text-gray-300">Amount</Label>
+                                  <div className="relative">
+                                    <span className="absolute left-3 top-2.5 text-gray-400">{currencySymbol}</span>
+                                    <Input 
+                                      id="fund-amount" 
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      className="pl-7 bg-gray-700 border-gray-600 text-white"
+                                      value={selectedMember?.id === child.id ? fundAmount : ''}
+                                      onChange={(e) => {
+                                        setSelectedMember(child);
+                                        setFundAmount(e.target.value);
+                                      }}
+                                      placeholder="0.00"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex justify-end gap-3">
+                                <DialogClose asChild>
+                                  <Button variant="outline" className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
+                                    Cancel
+                                  </Button>
+                                </DialogClose>
+                                <Button 
+                                  className="bg-purple-600 hover:bg-purple-700"
+                                  onClick={() => {
+                                    setSelectedMember(child);
+                                    handleAddFunds();
+                                  }}
+                                  disabled={isAddingFunds || !fundAmount || parseFloat(fundAmount) <= 0}
+                                >
+                                  {isAddingFunds && selectedMember?.id === child.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                  ) : null}
+                                  Add Funds
+                                </Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
-            </div>
-          </TabsContent>
+            </CardContent>
+          </Card>
           
-          <TabsContent value="spending" className="mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="bg-gray-800 border-gray-700 md:col-span-2">
-                <CardHeader className="border-b border-gray-700">
-                  <CardTitle>Family Spending Overview</CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div style={{ width: '100%', height: 300 }}>
-                    <ResponsiveContainer>
-                      <PieChart>
-                        <Pie
-                          data={spendingData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                          outerRadius={100}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {spendingData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(value) => `${currencySymbol}${value}`} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader className="border-b border-gray-700">
-                  <CardTitle>Top Expenses</CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="space-y-4">
-                    {spendingData
-                      .sort((a, b) => b.value - a.value)
-                      .slice(0, 4)
-                      .map((category, index) => (
-                        <div key={index} className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: category.color }}></div>
-                            <span className="text-gray-300">{category.name}</span>
-                          </div>
-                          <span className="font-medium">{currencySymbol}{category.value.toFixed(2)}</span>
-                        </div>
-                      ))
-                    }
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="goals" className="mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {savingsGoals.map((goal) => {
-                const child = children.find(c => c.id === goal.memberId);
-                return (
-                  <Card key={goal.id} className="bg-gray-800 border-gray-700">
-                    <CardHeader className="border-b border-gray-700">
-                      <div className="flex justify-between items-center">
-                        <CardTitle className="text-base">{goal.name}</CardTitle>
-                        {child && (
-                          <div className="flex items-center">
-                            <span className="text-sm text-gray-400 mr-2">{child.name}</span>
-                            <Avatar className="w-6 h-6">
-                              <AvatarFallback className="bg-purple-600 text-xs">{child.image}</AvatarFallback>
-                            </Avatar>
-                          </div>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                      <div className="flex justify-between text-sm mb-2">
-                        <span>{currencySymbol}{goal.currentAmount.toFixed(2)}</span>
-                        <span>{currencySymbol}{goal.targetAmount.toFixed(2)}</span>
-                      </div>
-                      <Progress value={goal.percentComplete} className="h-2 bg-gray-700" />
-                      <div className="mt-2 flex justify-between text-sm">
-                        <span className="text-gray-400">{goal.percentComplete.toFixed(0)}% completed</span>
-                        <span className="text-gray-400">Target: {goal.targetDate}</span>
-                      </div>
-                      <Button size="sm" className="mt-4 w-full bg-purple-600 hover:bg-purple-700">
-                        <Plus className="h-3 w-3 mr-1" /> Add Funds
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-gray-700">
+              <CardTitle>Spending by Category</CardTitle>
+              <Clock className="h-4 w-4 text-gray-400" />
+            </CardHeader>
+            <CardContent className="pt-6">
+              {isLoading ? (
+                <div className="flex justify-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                </div>
+              ) : spendingData.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-400">No expenses recorded yet</p>
+                  <p className="text-sm text-gray-500">Start tracking expenses to see your spending breakdown</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={spendingData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {spendingData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value: number) => [`${currencySymbol}${value.toFixed(2)}`, '']}
+                      contentStyle={{ backgroundColor: '#2D3748', borderColor: '#4A5568', color: 'white' }}
+                    />
+                    <Legend
+                      verticalAlign="bottom"
+                      layout="horizontal"
+                      formatter={(value: string, entry: any) => (
+                        <span style={{ color: '#E2E8F0' }}>{value}</span>
+                      )}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+        
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader className="border-b border-gray-700">
+              <CardTitle>Savings Goals</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="flex justify-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                </div>
+              ) : savingsGoals.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-400">No savings goals yet</p>
+                  <p className="text-sm text-gray-500 mt-2 mb-4">Create a savings goal to help your children achieve their dreams</p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="bg-purple-600 hover:bg-purple-700">
+                        <PlusCircle className="h-4 w-4 mr-2" /> Create Goal
                       </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-              
-              <Card className="bg-gray-800 border-gray-700 flex flex-col items-center justify-center p-6 border-dashed">
-                <PlusCircle className="h-12 w-12 text-gray-600 mb-3" />
-                <h3 className="text-gray-400 mb-2">Add New Saving Goal</h3>
-                <Button variant="outline" className="bg-transparent border-gray-700 text-gray-300 hover:bg-gray-700">
-                  <Plus className="h-4 w-4 mr-1" /> Create Goal
-                </Button>
-              </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
+                    </DialogTrigger>
+                    <DialogContent className="bg-gray-800 text-white border-gray-700">
+                      <DialogHeader>
+                        <DialogTitle>Create New Savings Goal</DialogTitle>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div>
+                          <Label htmlFor="goal-member-dialog" className="text-gray-300">Child</Label>
+                          <Select value={goalMember} onValueChange={setGoalMember}>
+                            <SelectTrigger id="goal-member-dialog" className="bg-gray-700 border-gray-600 text-white">
+                              <SelectValue placeholder="Select a child" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-gray-700 border-gray-600">
+                              {childMembers.map(member => (
+                                <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="goal-name-dialog" className="text-gray-300">Goal Name</Label>
+                          <Input 
+                            id="goal-name-dialog" 
+                            value={goalName}
+                            onChange={(e) => setGoalName(e.target.value)}
+                            className="bg-gray-700 border-gray-600 text-white"
+                            placeholder="e.g., New Bike, Game Console"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="goal-amount-dialog" className="text-gray-300">Target Amount</Label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-2.5 text-gray-400">{currencySymbol}</span>
+                            <Input 
+                              id="goal-amount-dialog" 
+                              value={goalAmount}
+                              onChange={(e) => setGoalAmount(e.target.value)}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className="pl-7 bg-gray-700 border-gray-600 text-white"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label htmlFor="goal-date-dialog" className="text-gray-300">Target Date (Optional)</Label>
+                          <Input 
+                            id="goal-date-dialog" 
+                            value={goalDate}
+                            onChange={(e) => setGoalDate(e.target.value)}
+                            className="bg-gray-700 border-gray-600 text-white"
+                            placeholder="e.g., December 2023"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-3">
+                        <DialogClose asChild>
+                          <Button variant="outline" className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
+                            Cancel
+                          </Button>
+                        </DialogClose>
+                        <Button 
+                          className="bg-purple-600 hover:bg-purple-700"
+                          onClick={handleCreateGoal}
+                          disabled={isAddingGoal || !goalMember || !goalName || !goalAmount}
+                        >
+                          {isAddingGoal ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                          Create Goal
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-700">
+                  {savingsGoals.map(goal => {
+                    const childName = childMembers.find(m => m.id === goal.memberId)?.name || 'Child';
+                    return (
+                      <div key={goal.id} className="p-4">
+                        <div className="flex justify-between items-start mb-1">
+                          <div>
+                            <h3 className="font-medium text-white">{goal.name}</h3>
+                            <p className="text-sm text-gray-400">{childName}'s goal</p>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-medium text-white">
+                              {currencySymbol}{goal.currentAmount.toFixed(2)} / {currencySymbol}{goal.targetAmount.toFixed(2)}
+                            </div>
+                            <p className="text-xs text-gray-400">
+                              {goal.targetDate ? `Target: ${goal.targetDate}` : 'No target date'}
+                            </p>
+                          </div>
+                        </div>
+                        <Progress 
+                          value={goal.percentComplete > 100 ? 100 : goal.percentComplete} 
+                          className="h-2 bg-gray-700"
+                        />
+                        <p className="text-xs text-gray-400 mt-1 text-right">
+                          {goal.percentComplete.toFixed(1)}% complete
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader className="border-b border-gray-700">
+              <CardTitle>Recent Activity</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="text-center py-12 text-gray-400">
+                <p>Activity feed coming soon</p>
+                <p className="text-sm text-gray-500 mt-2">Track allowance payments and savings milestones</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

@@ -64,16 +64,34 @@ const ProfileSelection = () => {
       
       <h2 className="text-2xl font-bold text-white mb-10">Who's managing expenses today?</h2>
       
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-        {isLoading ? (
-          Array(4).fill(0).map((_, index) => (
+      {isLoading ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+          {Array(4).fill(0).map((_, index) => (
             <div key={index} className="flex flex-col items-center animate-pulse">
               <div className="w-28 h-28 rounded-full bg-gray-700 mb-3"></div>
               <div className="h-5 w-20 bg-gray-700 rounded"></div>
             </div>
-          ))
-        ) : (
-          familyMembers.map((member) => (
+          ))}
+        </div>
+      ) : familyMembers.length === 0 ? (
+        <div className="flex flex-col items-center justify-center text-center">
+          <div className="mb-6 p-10 border-4 border-dashed border-gray-600 rounded-full">
+            <PlusCircle className="w-20 h-20 text-gray-500" />
+          </div>
+          <p className="text-xl text-gray-400 mb-4">No family members yet</p>
+          <p className="text-gray-500 mb-8 max-w-md">Start by adding family members to track expenses and manage allowances together</p>
+          <Button 
+            onClick={handleAddProfile} 
+            className="bg-purple-600 hover:bg-purple-700 flex items-center"
+            size="lg"
+          >
+            <PlusCircle className="mr-2 h-5 w-5" />
+            Add Family Member
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+          {familyMembers.map((member) => (
             <motion.div
               key={member.id}
               whileHover={{ scale: 1.05 }}
@@ -95,21 +113,21 @@ const ProfileSelection = () => {
                 <span className="mt-1 text-xs text-purple-400">Parent</span>
               )}
             </motion.div>
-          ))
-        )}
-        
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="flex flex-col items-center cursor-pointer"
-          onClick={handleAddProfile}
-        >
-          <div className="w-28 h-28 rounded-full border-4 border-dashed border-gray-600 flex items-center justify-center hover:border-purple-500 transition-all duration-300">
-            <PlusCircle className="w-12 h-12 text-gray-500 hover:text-purple-500 transition-all duration-300" />
-          </div>
-          <p className="mt-3 text-lg font-medium text-white">Add Profile</p>
-        </motion.div>
-      </div>
+          ))}
+          
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="flex flex-col items-center cursor-pointer"
+            onClick={handleAddProfile}
+          >
+            <div className="w-28 h-28 rounded-full border-4 border-dashed border-gray-600 flex items-center justify-center hover:border-purple-500 transition-all duration-300">
+              <PlusCircle className="w-12 h-12 text-gray-500 hover:text-purple-500 transition-all duration-300" />
+            </div>
+            <p className="mt-3 text-lg font-medium text-white">Add Profile</p>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { ShieldCheck, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import { familyService } from '@/services/familyService';
@@ -122,6 +122,7 @@ const AddProfile = () => {
                 onChange={(e) => setName(e.target.value)}
                 className="bg-gray-800 border-gray-700 text-white"
                 placeholder="Enter name"
+                required
               />
             </div>
             
@@ -169,7 +170,12 @@ const AddProfile = () => {
             className="w-full bg-purple-600 hover:bg-purple-700"
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Creating..." : "Create Profile"}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : "Create Profile"}
           </Button>
         </form>
       </div>

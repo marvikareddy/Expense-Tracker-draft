@@ -18,20 +18,21 @@ export interface ChildReward {
 }
 
 export const childService = {
-  // Get child's pocket money
+  // Get child's pocket money (allowance)
   getPocketMoney: async (memberId: string): Promise<number> => {
-    // Since there's no family_members table in the database, we'll use mock data
-    // In a production app, you would store this in an appropriate table
     try {
-      // Check if we can find the member in expenses to make it more realistic
-      const { data } = await supabase
-        .from('expenses')
-        .select('id')
-        .eq('user_id', memberId)
-        .limit(1);
+      const { data, error } = await supabase
+        .from('family_members')
+        .select('allowance')
+        .eq('id', memberId)
+        .single();
         
-      // Return mock data
-      return 50.00; // Default value
+      if (error) {
+        console.error('Error fetching pocket money:', error);
+        throw error;
+      }
+      
+      return data.allowance || 0;
     } catch (error) {
       console.error('Error fetching pocket money:', error);
       throw error;
@@ -41,29 +42,99 @@ export const childService = {
   // Get child's savings goal
   getSavingsGoal: async (memberId: string): Promise<{current: number, target: number, item: string}> => {
     try {
-      // In a production app, you would create and query a savings_goals table
-      // For now, return mock data based on user ID to maintain consistency
+      // First get the child's current savings amount
+      const { data: memberData, error: memberError } = await supabase
+        .from('family_members')
+        .select('savings')
+        .eq('id', memberId)
+        .single();
+        
+      if (memberError) {
+        console.error('Error fetching member savings:', memberError);
+        throw memberError;
+      }
+      
+      // Then get the savings goal
+      const { data: goalData, error: goalError } = await supabase
+        .from('savings_goals')
+        .select('*')
+        .eq('member_id', memberId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+        
+      if (goalError) {
+        // If no goal found, return a default object
+        if (goalError.code === 'PGRST116') {
+          return {
+            current: memberData.savings || 0,
+            target: 0,
+            item: "No goal set"
+          };
+        }
+        console.error('Error fetching savings goal:', goalError);
+        throw goalError;
+      }
       
       return {
-        current: 125.00,
-        target: 200.00,
-        item: "new bike"
+        current: memberData.savings || 0,
+        target: goalData.target_amount || 0,
+        item: goalData.name || "Goal"
       };
     } catch (error) {
       console.error('Error fetching savings goal:', error);
-      throw error;
+      // Return a default object in case of error
+      return {
+        current: 0,
+        target: 0,
+        item: "No goal set"
+      };
     }
   },
 
   // Add to child's savings
   addToSavings: async (memberId: string, amount: number): Promise<{current: number, target: number}> => {
     try {
-      // In a production app, you would update a record in a savings_goals table
+      // Get current savings first
+      const { data: currentData, error: currentError } = await supabase
+        .from('family_members')
+        .select('savings')
+        .eq('id', memberId)
+        .single();
+        
+      if (currentError) {
+        console.error('Error fetching current savings:', currentError);
+        throw currentError;
+      }
       
-      // Return mock updated values
+      const currentSavings = currentData.savings || 0;
+      const newSavings = currentSavings + amount;
+      
+      // Update the savings amount
+      const { data: updateData, error: updateError } = await supabase
+        .from('family_members')
+        .update({ savings: newSavings })
+        .eq('id', memberId)
+        .select()
+        .single();
+        
+      if (updateError) {
+        console.error('Error updating savings:', updateError);
+        throw updateError;
+      }
+      
+      // Get the savings goal
+      const { data: goalData, error: goalError } = await supabase
+        .from('savings_goals')
+        .select('target_amount')
+        .eq('member_id', memberId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+        
       return {
-        current: 125.00 + amount,
-        target: 200.00
+        current: newSavings,
+        target: goalError ? 0 : (goalData.target_amount || 0)
       };
     } catch (error) {
       console.error('Error adding to savings:', error);
@@ -71,7 +142,7 @@ export const childService = {
     }
   },
 
-  // Get child's rewards
+  // Get child's rewards (mock data as we don't have a rewards table yet)
   getRewards: async (memberId: string): Promise<ChildReward[]> => {
     try {
       // Return mock data since rewards table doesn't exist yet

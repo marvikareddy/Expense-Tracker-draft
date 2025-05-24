@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface FamilyMember {
@@ -129,7 +128,7 @@ export const familyService = {
       throw error;
     }
   },
-
+  
   // Add funds to a family member
   addFunds: async (memberId: string, amount: number): Promise<FamilyMember> => {
     try {
@@ -295,9 +294,9 @@ export const familyService = {
       throw error;
     }
   },
-
+  
   // Get spending data for the pie chart
-  getSpendingData: async (userId: string, memberId?: string): Promise<any[]> => {
+  getSpendingData: async (userId: string, memberId?: string | number): Promise<any[]> => {
     try {
       // Fetch real spending data from expenses table if possible
       let query = supabase
@@ -305,9 +304,8 @@ export const familyService = {
         .select('category, amount')
         .eq('user_id', userId);
         
-      if (memberId) {
-        // Fix: Convert memberId to string if it's a number
-        // This fixes the error on line 147 by ensuring we're passing a string
+      if (memberId !== undefined) {
+        // Fix: Always convert memberId to string to match database expectations
         const memberIdString = String(memberId);
         query = query.eq('member_id', memberIdString);
       }

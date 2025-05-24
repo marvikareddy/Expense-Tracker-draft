@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export interface FamilyMember {
@@ -18,6 +19,12 @@ export interface SavingsGoal {
   percentComplete: number;
   targetDate: string;
   memberId: string;
+}
+
+export interface SpendingDataItem {
+  name: string;
+  value: number;
+  color: string;
 }
 
 export const familyService = {
@@ -296,7 +303,7 @@ export const familyService = {
   },
   
   // Get spending data for the pie chart
-  getSpendingData: async (userId: string, memberId?: string | number): Promise<Array<{name: string, value: number, color: string}>> {
+  getSpendingData: async (userId: string, memberId?: string | number): Promise<SpendingDataItem[]> => {
     try {
       // Fetch real spending data from expenses table if possible
       let query = supabase

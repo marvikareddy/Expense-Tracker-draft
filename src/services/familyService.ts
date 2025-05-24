@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export interface FamilyMember {
@@ -305,8 +306,10 @@ export const familyService = {
         .eq('user_id', userId);
         
       if (memberId) {
-        // Fix the type error: memberId is expected to be a string by Supabase
-        query = query.eq('member_id', memberId);
+        // Fix: Convert memberId to string if it's a number
+        // This fixes the error on line 147 by ensuring we're passing a string
+        const memberIdString = String(memberId);
+        query = query.eq('member_id', memberIdString);
       }
       
       const { data, error } = await query;

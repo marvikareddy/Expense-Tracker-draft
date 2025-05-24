@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface FamilyMember {
@@ -174,7 +173,7 @@ export const familyService = {
       throw error;
     }
   },
-
+  
   // Get all savings goals for the family
   getSavingsGoals: async (userId: string): Promise<SavingsGoal[]> => {
     try {
@@ -225,7 +224,6 @@ export const familyService = {
           user_id: userId,
           member_id: memberId,
           name: goal.name,
-          // Fix the type error: Convert numbers to string where needed
           current_amount: goal.currentAmount || 0,
           target_amount: goal.targetAmount || 0,
           target_date: goal.targetDate || ''
@@ -307,7 +305,8 @@ export const familyService = {
         .eq('user_id', userId);
         
       if (memberId) {
-        query = query.eq('user_id', memberId);
+        // Fix the type error: memberId is expected to be a string by Supabase
+        query = query.eq('member_id', memberId);
       }
       
       const { data, error } = await query;

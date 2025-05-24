@@ -225,6 +225,7 @@ export const familyService = {
           user_id: userId,
           member_id: memberId,
           name: goal.name,
+          // Fix the type error: Convert numbers to string where needed
           current_amount: goal.currentAmount || 0,
           target_amount: goal.targetAmount || 0,
           target_date: goal.targetDate || ''

@@ -296,7 +296,7 @@ export const familyService = {
   },
   
   // Get spending data for the pie chart
-  getSpendingData: async (userId: string, memberId?: string | number): Promise<any[]> => {
+  getSpendingData: async (userId: string, memberId?: string | number): Promise<Array<{name: string, value: number, color: string}>> {
     try {
       // Fetch real spending data from expenses table if possible
       let query = supabase
@@ -305,9 +305,8 @@ export const familyService = {
         .eq('user_id', userId);
         
       if (memberId !== undefined) {
-        // Fix: Always convert memberId to string to match database expectations
-        const memberIdString = String(memberId);
-        query = query.eq('member_id', memberIdString);
+        // Always convert memberId to string before using it in the query
+        query = query.eq('member_id', String(memberId));
       }
       
       const { data, error } = await query;

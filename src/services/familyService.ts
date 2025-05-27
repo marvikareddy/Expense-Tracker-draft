@@ -323,14 +323,14 @@ export const familyService = {
       }
       
       if (data && data.length > 0) {
-        // Group data by category and sum amounts
+        // Group data by category and sum amounts - with explicit types
         const categoryTotals: Record<string, number> = {};
-        data.forEach(expense => {
-          const category = expense.category;
+        data.forEach((expense: { category: string; amount: number }) => {
+          const category: string = expense.category;
           categoryTotals[category] = (categoryTotals[category] || 0) + expense.amount;
         });
         
-        // Define colors for categories
+        // Define colors for categories with explicit type
         const colors: Record<string, string> = {
           'Education': '#9b87f5',
           'Food': '#F2FCE2',
@@ -343,12 +343,14 @@ export const familyService = {
           'Toys': '#FFB6C1'
         };
         
-        // Convert to array format needed for pie chart
-        return Object.keys(categoryTotals).map(category => ({
+        // Convert to array format needed for pie chart with explicit return type
+        const result: SpendingDataItem[] = Object.keys(categoryTotals).map((category: string): SpendingDataItem => ({
           name: category,
           value: categoryTotals[category],
           color: colors[category] || '#888888'
         }));
+        
+        return result;
       }
       
       // Return empty data if no expenses exist

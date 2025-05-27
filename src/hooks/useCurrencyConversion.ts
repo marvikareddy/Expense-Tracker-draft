@@ -10,7 +10,6 @@ export function useCurrencyConversion() {
   const [rates, setRates] = useState<Record<string, number>>({});
   const { toast } = useToast();
 
-  // Function to convert amount from one currency to target currency
   const convertAmount = useCallback(
     async (amount: number, fromCurrency: string = 'USD'): Promise<number> => {
       // Input validation
@@ -39,6 +38,8 @@ export function useCurrencyConversion() {
       
       try {
         setIsLoading(true);
+        console.log(`Fetching exchange rate from ${fromCurrency} to ${targetCurrency}`);
+        
         const rate = await exchangeRateService.getRate(fromCurrency, targetCurrency);
         
         if (rate === null || rate <= 0) {
@@ -59,7 +60,14 @@ export function useCurrencyConversion() {
         return convertedAmount;
       } catch (error) {
         console.error('Error converting currency:', error);
-        // Don't show toast for every conversion error, just log it
+        // Show toast only for conversion errors, not for every failed attempt
+        if (error instanceof Error && error.message.includes('Failed to fetch')) {
+          toast({
+            variant: "destructive",
+            title: "Currency Conversion Error",
+            description: "Unable to fetch current exchange rates. Using original amounts."
+          });
+        }
         return amount; // Return original amount as fallback
       } finally {
         setIsLoading(false);

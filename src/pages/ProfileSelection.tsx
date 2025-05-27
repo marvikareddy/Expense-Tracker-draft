@@ -5,41 +5,61 @@ import { Button } from '@/components/ui/button';
 import { PlusCircle, ShieldCheck } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
-import { familyService } from '@/services/familyService';
+import { familyService, FamilyMember } from '@/services/familyService';
 import ProfileCard from '@/components/ProfileCard';
 
 const ProfileSelection = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [familyMembers, setFamilyMembers] = useState<Array<any>>([]);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const loadFamilyMembers = async () => {
-    if (user) {
-      try {
-        setIsLoading(true);
-        const members = await familyService.getFamilyMembers(user.id);
-        setFamilyMembers(members);
-      } catch (error) {
-        console.error("Error loading family members:", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load family profiles."
-        });
-      } finally {
-        setIsLoading(false);
-      }
+    if (!user) return;
+    
+    try {
+      setIsLoading(true);
+      console.log('Loading family members for user:', user.id);
+      
+      const members = await familyService.getFamilyMembers(user.id);
+      setFamilyMembers(members);
+      
+      console.log('Loaded family members:', members);
+    } catch (error) {
+      console.error("Error loading family members:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load family profiles. Please try again."
+      });
+      setFamilyMembers([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (isUpdating) return;
+    
+    try {
+      setIsUpdating(true);
+      console.log('Updating family members list');
+      await loadFamilyMembers();
+    } finally {
+      setIsUpdating(false);
     }
   };
 
   useEffect(() => {
     loadFamilyMembers();
-  }, [user, toast]);
+  }, [user]);
 
-  const handleProfileSelect = (member: any) => {
-    // Store the selected profile in localStorage or session for reference
+  const handleProfileSelect = (member: FamilyMember) => {
+    console.log('Profile selected:', member);
+    
+    // Store the selected profile in localStorage for reference
     localStorage.setItem('selectedProfile', JSON.stringify(member));
     
     // Navigate to the appropriate dashboard based on isParent flag
@@ -95,7 +115,7 @@ const ProfileSelection = () => {
               key={member.id}
               member={member}
               onSelect={handleProfileSelect}
-              onUpdate={loadFamilyMembers}
+              onUpdate={handleUpdate}
               showActions={true}
             />
           ))}
@@ -109,6 +129,12 @@ const ProfileSelection = () => {
             </div>
             <p className="mt-3 text-lg font-medium text-white">Add Profile</p>
           </div>
+        </div>
+      )}
+      
+      {isUpdating && (
+        <div className="mt-4 text-purple-400 text-sm">
+          Updating profiles...
         </div>
       )}
     </div>

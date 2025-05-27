@@ -34,6 +34,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editData, setEditData] = useState({
     name: member.name,
     age: member.age,
@@ -42,10 +43,30 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
     image: member.image
   });
 
-  const handleEdit = async () => {
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!editData.name.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Name is required"
+      });
+      return;
+    }
+
     try {
+      setIsSaving(true);
       console.log('Starting edit for member:', member.id, editData);
-      await familyService.updateFamilyMember(member.id, editData);
+      
+      await familyService.updateFamilyMember(member.id, {
+        name: editData.name.trim(),
+        age: editData.age,
+        allowance: editData.allowance,
+        isParent: editData.isParent,
+        image: editData.image
+      });
       
       toast({
         title: "Success",
@@ -59,12 +80,17 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to update profile"
+        description: "Failed to update profile. Please try again."
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     try {
       setIsDeleting(true);
       console.log('Starting delete for member:', member.id);
@@ -73,7 +99,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
       
       toast({
         title: "Success",
-        description: "Profile deleted successfully"
+        description: `${member.name}'s profile has been deleted`
       });
       
       onUpdate();
@@ -82,11 +108,24 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to delete profile"
+        description: "Failed to delete profile. Please try again."
       });
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditData({
+      name: member.name,
+      age: member.age,
+      allowance: member.allowance,
+      isParent: member.isParent,
+      image: member.image
+    });
+    setIsEditing(true);
   };
 
   const emojiOptions = ['👤', '👨', '👩', '👦', '👧', '🧑', '👶', '👴', '👵', '🤠', '🤓', '😎'];
@@ -122,25 +161,16 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
                 size="sm"
                 variant="outline"
                 className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600 h-8 w-8 p-0"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditData({
-                    name: member.name,
-                    age: member.age,
-                    allowance: member.allowance,
-                    isParent: member.isParent,
-                    image: member.image
-                  });
-                }}
+                onClick={handleEditClick}
               >
                 <Edit className="h-3 w-3" />
               </Button>
             </DialogTrigger>
             <DialogContent className="bg-gray-800 text-white border-gray-700" onClick={(e) => e.stopPropagation()}>
               <DialogHeader>
-                <DialogTitle>Edit Profile</DialogTitle>
+                <DialogTitle>Edit {member.name}'s Profile</DialogTitle>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
+              <form onSubmit={handleEdit} className="grid gap-4 py-4">
                 <div>
                   <Label htmlFor="edit-name">Name</Label>
                   <Input
@@ -148,6 +178,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
                     value={editData.name}
                     onChange={(e) => setEditData(prev => ({ ...prev, name: e.target.value }))}
                     className="bg-gray-700 border-gray-600 text-white"
+                    required
                   />
                 </div>
                 <div>
@@ -155,6 +186,8 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
                   <Input
                     id="edit-age"
                     type="number"
+                    min="0"
+                    max="150"
                     value={editData.age}
                     onChange={(e) => setEditData(prev => ({ ...prev, age: parseInt(e.target.value) || 0 }))}
                     className="bg-gray-700 border-gray-600 text-white"
@@ -165,6 +198,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
                   <Input
                     id="edit-allowance"
                     type="number"
+                    min="0"
                     step="0.01"
                     value={editData.allowance}
                     onChange={(e) => setEditData(prev => ({ ...prev, allowance: parseFloat(e.target.value) || 0 }))}
@@ -186,7 +220,10 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
                       <button
                         key={emoji}
                         type="button"
-                        onClick={() => setEditData(prev => ({ ...prev, image: emoji }))}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setEditData(prev => ({ ...prev, image: emoji }));
+                        }}
                         className={`p-2 text-2xl rounded border-2 transition-colors ${
                           editData.image === emoji 
                             ? 'border-purple-500 bg-purple-600/20' 
@@ -198,22 +235,33 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
                     ))}
                   </div>
                 </div>
-              </div>
-              <div className="flex justify-end gap-3">
-                <DialogClose asChild>
-                  <Button variant="outline" className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
-                    Cancel
-                  </Button>
-                </DialogClose>
-                <DialogClose asChild>
+                <div className="flex justify-end gap-3 mt-4">
+                  <DialogClose asChild>
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700"
+                      disabled={isSaving}
+                    >
+                      Cancel
+                    </Button>
+                  </DialogClose>
                   <Button 
-                    onClick={handleEdit} 
+                    type="submit"
                     className="bg-purple-600 hover:bg-purple-700"
+                    disabled={isSaving}
                   >
-                    Save Changes
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
                   </Button>
-                </DialogClose>
-              </div>
+                </div>
+              </form>
             </DialogContent>
           </Dialog>
 
@@ -230,14 +278,18 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
             </DialogTrigger>
             <DialogContent className="bg-gray-800 text-white border-gray-700" onClick={(e) => e.stopPropagation()}>
               <DialogHeader>
-                <DialogTitle>Delete Profile</DialogTitle>
+                <DialogTitle>Delete {member.name}'s Profile</DialogTitle>
               </DialogHeader>
-              <p className="text-gray-300">
-                Are you sure you want to delete {member.name}'s profile? This action cannot be undone.
+              <p className="text-gray-300 py-4">
+                Are you sure you want to delete {member.name}'s profile? This action cannot be undone and will also delete any associated savings goals.
               </p>
-              <div className="flex justify-end gap-3 mt-4">
+              <div className="flex justify-end gap-3">
                 <DialogClose asChild>
-                  <Button variant="outline" className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
+                  <Button 
+                    variant="outline" 
+                    className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700"
+                    disabled={isDeleting}
+                  >
                     Cancel
                   </Button>
                 </DialogClose>

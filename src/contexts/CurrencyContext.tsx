@@ -27,22 +27,56 @@ const CURRENCIES = {
   GBP: '£',
   JPY: '¥',
   INR: '₹',
+  CAD: 'C$',
+  AUD: 'A$',
+  CNY: '¥',
+  CHF: 'Fr',
+  SEK: 'kr'
 };
 
 export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) => {
   const [currency, setCurrency] = useState<string>(() => {
-    // First, try to get from localStorage
-    const savedCurrency = localStorage.getItem('selectedCurrency');
-    return savedCurrency || 'INR'; // Default to INR if nothing in localStorage
+    try {
+      // First, try to get from localStorage
+      const savedCurrency = localStorage.getItem('selectedCurrency');
+      if (savedCurrency && CURRENCIES[savedCurrency as keyof typeof CURRENCIES]) {
+        return savedCurrency;
+      }
+    } catch (error) {
+      console.warn('Error reading currency from localStorage:', error);
+    }
+    return 'INR'; // Default to INR if nothing in localStorage or error
   });
 
-  useEffect(() => {
-    // Update localStorage when currency changes
-    localStorage.setItem('selectedCurrency', currency);
+  const handleSetCurrency = (newCurrency: string) => {
+    console.log('Setting currency to:', newCurrency);
     
+    if (!CURRENCIES[newCurrency as keyof typeof CURRENCIES]) {
+      console.warn('Invalid currency:', newCurrency);
+      return;
+    }
+    
+    setCurrency(newCurrency);
+    
+    try {
+      // Update localStorage
+      localStorage.setItem('selectedCurrency', newCurrency);
+      
+      // Dispatch custom event for currency change
+      const event = new CustomEvent('currencyChanged', { detail: newCurrency });
+      window.dispatchEvent(event);
+    } catch (error) {
+      console.warn('Error saving currency to localStorage:', error);
+    }
+  };
+
+  useEffect(() => {
     // Listen for currency change events from other components
     const handleCurrencyChange = (event: CustomEvent) => {
-      setCurrency(event.detail);
+      const newCurrency = event.detail;
+      if (newCurrency !== currency && CURRENCIES[newCurrency as keyof typeof CURRENCIES]) {
+        setCurrency(newCurrency);
+      }
     };
     
     window.addEventListener('currencyChanged', handleCurrencyChange as EventListener);
@@ -58,7 +92,7 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
 
   const value = {
     currency,
-    setCurrency,
+    setCurrency: handleSetCurrency,
     getCurrencySymbol,
   };
 

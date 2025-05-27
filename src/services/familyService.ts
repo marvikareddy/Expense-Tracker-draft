@@ -31,10 +31,12 @@ export const familyService = {
   getFamilyMembers: async (userId: string): Promise<FamilyMember[]> => {
     try {
       console.log('Fetching family members for user:', userId);
+      const userIdStr = String(userId); // Ensure string type
+
       const { data, error } = await supabase
         .from('family_members')
         .select('*')
-        .eq('user_id', userId);
+        .eq('user_id', userIdStr);
 
       if (error) {
         console.error('Error fetching family members:', error);
@@ -67,10 +69,12 @@ export const familyService = {
   addFamilyMember: async (userId: string, member: Partial<FamilyMember>): Promise<FamilyMember> => {
     try {
       console.log('Adding family member:', member);
+      const userIdStr = String(userId); // Ensure string
+
       const { data, error } = await supabase
         .from('family_members')
         .insert([{
-          user_id: userId,
+          user_id: userIdStr,
           name: member.name,
           age: member.age || 0,
           savings: member.savings || 0,
@@ -107,7 +111,8 @@ export const familyService = {
   updateFamilyMember: async (memberId: string, updates: Partial<FamilyMember>): Promise<FamilyMember> => {
     try {
       console.log('Updating family member:', memberId, updates);
-      
+      const memberIdStr = String(memberId); // Ensure string
+
       const updateData: Record<string, any> = {};
       if (updates.name !== undefined) updateData.name = updates.name;
       if (updates.age !== undefined) updateData.age = updates.age;
@@ -119,7 +124,7 @@ export const familyService = {
       const { data, error } = await supabase
         .from('family_members')
         .update(updateData)
-        .eq('id', memberId)
+        .eq('id', memberIdStr)
         .select()
         .single();
 
@@ -153,30 +158,30 @@ export const familyService = {
   deleteFamilyMember: async (memberId: string): Promise<void> => {
     try {
       console.log('Deleting family member:', memberId);
-      
-      // First delete any related savings goals
+      const memberIdStr = String(memberId); // Ensure string
+
+      // Delete related savings goals first
       const { error: goalsError } = await supabase
         .from('savings_goals')
         .delete()
-        .eq('member_id', memberId);
+        .eq('member_id', memberIdStr);
 
       if (goalsError) {
         console.error('Error deleting related savings goals:', goalsError);
-        // Continue with member deletion even if goals deletion fails
       }
 
-      // Then delete the family member
+      // Delete the family member
       const { error } = await supabase
         .from('family_members')
         .delete()
-        .eq('id', memberId);
+        .eq('id', memberIdStr);
 
       if (error) {
         console.error('Error deleting family member:', error);
         throw error;
       }
 
-      console.log('Successfully deleted family member:', memberId);
+      console.log('Successfully deleted family member:', memberIdStr);
     } catch (error) {
       console.error('Error deleting family member:', error);
       throw error;
@@ -186,11 +191,12 @@ export const familyService = {
   addFunds: async (memberId: string, amount: number): Promise<FamilyMember> => {
     try {
       console.log('Adding funds to member:', memberId, amount);
+      const memberIdStr = String(memberId); // Ensure string
       
       const { data: currentMember, error: fetchError } = await supabase
         .from('family_members')
         .select('*')
-        .eq('id', memberId)
+        .eq('id', memberIdStr)
         .single();
 
       if (fetchError) {
@@ -204,7 +210,7 @@ export const familyService = {
       const { data, error } = await supabase
         .from('family_members')
         .update({ savings: newSavings })
-        .eq('id', memberId)
+        .eq('id', memberIdStr)
         .select()
         .single();
 
@@ -234,11 +240,12 @@ export const familyService = {
   getSavingsGoals: async (userId: string): Promise<SavingsGoal[]> => {
     try {
       console.log('Fetching savings goals for user:', userId);
+      const userIdStr = String(userId); // Ensure string
       
       const { data, error } = await supabase
         .from('savings_goals')
         .select('*')
-        .eq('user_id', userId);
+        .eq('user_id', userIdStr);
 
       if (error) {
         console.error('Error fetching savings goals:', error);
@@ -277,12 +284,14 @@ export const familyService = {
   addSavingsGoal: async (userId: string, memberId: string, goal: Partial<SavingsGoal>): Promise<SavingsGoal> => {
     try {
       console.log('Adding savings goal:', goal);
+      const userIdStr = String(userId);
+      const memberIdStr = String(memberId);
       
       const { data, error } = await supabase
         .from('savings_goals')
         .insert([{
-          user_id: userId,
-          member_id: memberId,
+          user_id: userIdStr,
+          member_id: memberIdStr,
           name: goal.name,
           current_amount: goal.currentAmount || 0,
           target_amount: goal.targetAmount || 0,
@@ -321,7 +330,8 @@ export const familyService = {
   updateSavingsGoal: async (goalId: string, updates: Partial<SavingsGoal>): Promise<SavingsGoal> => {
     try {
       console.log('Updating savings goal:', goalId, updates);
-      
+      const goalIdStr = String(goalId); // Ensure string
+
       const updateData: Record<string, any> = {};
       if (updates.name !== undefined) updateData.name = updates.name;
       if (updates.currentAmount !== undefined) updateData.current_amount = updates.currentAmount;
@@ -331,7 +341,7 @@ export const familyService = {
       const { data, error } = await supabase
         .from('savings_goals')
         .update(updateData)
-        .eq('id', goalId)
+        .eq('id', goalIdStr)
         .select()
         .single();
 
@@ -362,65 +372,27 @@ export const familyService = {
     }
   },
 
-  getSpendingData: async (userId: string, memberId?: string): Promise<SpendingDataItem[]> => {
+  deleteSavingsGoal: async (goalId: string): Promise<void> => {
     try {
-      console.log('Fetching spending data for user:', userId, 'member:', memberId);
-      
-      let query = supabase
-        .from('expenses')
-        .select('category, amount')
-        .eq('user_id', userId);
+      console.log('Deleting savings goal:', goalId);
+      const goalIdStr = String(goalId); // Ensure string
 
-      if (memberId) {
-        query = query.eq('member_id', memberId);
-      }
-
-      const { data, error } = await query;
+      const { error } = await supabase
+        .from('savings_goals')
+        .delete()
+        .eq('id', goalIdStr);
 
       if (error) {
-        console.error('Error fetching spending data:', error);
+        console.error('Error deleting savings goal:', error);
         throw error;
       }
-      
-      if (!data || data.length === 0) {
-        console.log('No spending data found');
-        return [];
-      }
 
-      const categoryTotals = new Map<string, number>();
-      data.forEach((expense: any) => {
-        const category = expense.category;
-        const amount = parseFloat(expense.amount) || 0;
-        const currentTotal = categoryTotals.get(category) || 0;
-        categoryTotals.set(category, currentTotal + amount);
-      });
-
-      const colorMap = new Map([
-        ['Education', '#9b87f5'],
-        ['Food', '#F2FCE2'],
-        ['Entertainment', '#FEC6A1'],
-        ['Savings', '#D3E4FD'],
-        ['Shopping', '#FFD6E0'],
-        ['Transport', '#C5F5CA'],
-        ['Bills', '#FFEB99'],
-        ['Other', '#E0E0E0'],
-        ['Toys', '#FFB6C1']
-      ]);
-
-      const resultArray: SpendingDataItem[] = [];
-      categoryTotals.forEach((value, category) => {
-        resultArray.push({
-          name: category,
-          value: value,
-          color: colorMap.get(category) || '#888888'
-        });
-      });
-
-      console.log('Successfully fetched spending data:', resultArray);
-      return resultArray;
+      console.log('Successfully deleted savings goal:', goalIdStr);
     } catch (error) {
-      console.error('Error fetching spending data:', error);
-      return [];
+      console.error('Error deleting savings goal:', error);
+      throw error;
     }
-  }
+  },
+
+  // Optional: Add other methods if you have more features
 };

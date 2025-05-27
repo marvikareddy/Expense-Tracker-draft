@@ -44,11 +44,14 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
 
   const handleEdit = async () => {
     try {
+      console.log('Starting edit for member:', member.id, editData);
       await familyService.updateFamilyMember(member.id, editData);
+      
       toast({
         title: "Success",
         description: "Profile updated successfully"
       });
+      
       setIsEditing(false);
       onUpdate();
     } catch (error) {
@@ -64,11 +67,15 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
   const handleDelete = async () => {
     try {
       setIsDeleting(true);
+      console.log('Starting delete for member:', member.id);
+      
       await familyService.deleteFamilyMember(member.id);
+      
       toast({
         title: "Success",
         description: "Profile deleted successfully"
       });
+      
       onUpdate();
     } catch (error) {
       console.error("Error deleting profile:", error);
@@ -115,12 +122,21 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
                 size="sm"
                 variant="outline"
                 className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600 h-8 w-8 p-0"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditData({
+                    name: member.name,
+                    age: member.age,
+                    allowance: member.allowance,
+                    isParent: member.isParent,
+                    image: member.image
+                  });
+                }}
               >
                 <Edit className="h-3 w-3" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-gray-800 text-white border-gray-700">
+            <DialogContent className="bg-gray-800 text-white border-gray-700" onClick={(e) => e.stopPropagation()}>
               <DialogHeader>
                 <DialogTitle>Edit Profile</DialogTitle>
               </DialogHeader>
@@ -189,9 +205,14 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
                     Cancel
                   </Button>
                 </DialogClose>
-                <Button onClick={handleEdit} className="bg-purple-600 hover:bg-purple-700">
-                  Save Changes
-                </Button>
+                <DialogClose asChild>
+                  <Button 
+                    onClick={handleEdit} 
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    Save Changes
+                  </Button>
+                </DialogClose>
               </div>
             </DialogContent>
           </Dialog>
@@ -207,7 +228,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
                 <Trash2 className="h-3 w-3" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-gray-800 text-white border-gray-700">
+            <DialogContent className="bg-gray-800 text-white border-gray-700" onClick={(e) => e.stopPropagation()}>
               <DialogHeader>
                 <DialogTitle>Delete Profile</DialogTitle>
               </DialogHeader>
@@ -220,20 +241,22 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
                     Cancel
                   </Button>
                 </DialogClose>
-                <Button 
-                  onClick={handleDelete} 
-                  disabled={isDeleting}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  {isDeleting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Deleting...
-                    </>
-                  ) : (
-                    'Delete'
-                  )}
-                </Button>
+                <DialogClose asChild>
+                  <Button 
+                    onClick={handleDelete} 
+                    disabled={isDeleting}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Deleting...
+                      </>
+                    ) : (
+                      'Delete'
+                    )}
+                  </Button>
+                </DialogClose>
               </div>
             </DialogContent>
           </Dialog>

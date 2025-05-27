@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export interface FamilyMember {
@@ -274,52 +275,57 @@ export const familyService = {
 
   getSpendingData: async (userId: string, memberId?: string): Promise<SpendingDataItem[]> => {
     try {
-      let query = supabase
+      const query = supabase
         .from('expenses')
         .select('category, amount')
         .eq('user_id', userId);
 
       if (memberId) {
-        query = query.eq('member_id', memberId);
+        const { data, error } = await query.eq('member_id', memberId);
+        if (error) throw error;
+        return processSpendingData(data || []);
+      } else {
+        const { data, error } = await query;
+        if (error) throw error;
+        return processSpendingData(data || []);
       }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      if (!data || data.length === 0) return [];
-
-      const categoryTotals = new Map<string, number>();
-      data.forEach((expense: any) => {
-        const category = expense.category;
-        const currentTotal = categoryTotals.get(category) || 0;
-        categoryTotals.set(category, currentTotal + expense.amount);
-      });
-
-      const colorMap = new Map([
-        ['Education', '#9b87f5'],
-        ['Food', '#F2FCE2'],
-        ['Entertainment', '#FEC6A1'],
-        ['Savings', '#D3E4FD'],
-        ['Shopping', '#FFD6E0'],
-        ['Transport', '#C5F5CA'],
-        ['Bills', '#FFEB99'],
-        ['Other', '#E0E0E0'],
-        ['Toys', '#FFB6C1']
-      ]);
-
-      const resultArray: SpendingDataItem[] = [];
-      categoryTotals.forEach((value, category) => {
-        resultArray.push({
-          name: category,
-          value: value,
-          color: colorMap.get(category) || '#888888'
-        });
-      });
-
-      return resultArray;
     } catch (error) {
       console.error('Error fetching spending data:', error);
       return [];
     }
   }
 };
+
+function processSpendingData(data: any[]): SpendingDataItem[] {
+  if (!data || data.length === 0) return [];
+
+  const categoryTotals = new Map<string, number>();
+  data.forEach((expense: any) => {
+    const category = expense.category;
+    const currentTotal = categoryTotals.get(category) || 0;
+    categoryTotals.set(category, currentTotal + expense.amount);
+  });
+
+  const colorMap = new Map([
+    ['Education', '#9b87f5'],
+    ['Food', '#F2FCE2'],
+    ['Entertainment', '#FEC6A1'],
+    ['Savings', '#D3E4FD'],
+    ['Shopping', '#FFD6E0'],
+    ['Transport', '#C5F5CA'],
+    ['Bills', '#FFEB99'],
+    ['Other', '#E0E0E0'],
+    ['Toys', '#FFB6C1']
+  ]);
+
+  const resultArray: SpendingDataItem[] = [];
+  categoryTotals.forEach((value, category) => {
+    resultArray.push({
+      name: category,
+      value: value,
+      color: colorMap.get(category) || '#888888'
+    });
+  });
+
+  return resultArray;
+}

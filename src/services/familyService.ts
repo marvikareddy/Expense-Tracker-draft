@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface FamilyMember {
@@ -284,20 +283,13 @@ export const familyService = {
         query = query.eq('member_id', memberId);
       }
 
-      type ExpenseRow = { category: string; amount: number };
-
-      const result = await (query as unknown as Promise<{
-        data: ExpenseRow[] | null;
-        error: any;
-      }>);
-
-      const { data, error } = result;
+      const { data, error } = await query;
 
       if (error) throw error;
       if (!data || data.length === 0) return [];
 
       const categoryTotals = new Map<string, number>();
-      data.forEach(expense => {
+      data.forEach((expense: any) => {
         const category = expense.category;
         const currentTotal = categoryTotals.get(category) || 0;
         categoryTotals.set(category, currentTotal + expense.amount);

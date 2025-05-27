@@ -12,7 +12,18 @@ export function useCurrencyConversion() {
 
   // Function to convert amount from one currency to target currency
   const convertAmount = useCallback(
-    async (amount: number, fromCurrency: string): Promise<number> => {
+    async (amount: number, fromCurrency: string = 'USD'): Promise<number> => {
+      // Input validation
+      if (!amount || isNaN(amount) || amount < 0) {
+        console.log('Invalid amount provided:', amount);
+        return 0;
+      }
+      
+      if (!fromCurrency || !targetCurrency) {
+        console.log('Invalid currencies:', { fromCurrency, targetCurrency });
+        return amount;
+      }
+      
       // No conversion needed if currencies are the same
       if (fromCurrency === targetCurrency) {
         return amount;
@@ -20,20 +31,22 @@ export function useCurrencyConversion() {
       
       // Check if we have already cached the rate
       const rateKey = `${fromCurrency}_${targetCurrency}`;
-      if (rates[rateKey]) {
-        return amount * rates[rateKey];
+      if (rates[rateKey] && rates[rateKey] > 0) {
+        const convertedAmount = amount * rates[rateKey];
+        console.log(`Using cached rate: ${amount} ${fromCurrency} = ${convertedAmount} ${targetCurrency}`);
+        return convertedAmount;
       }
       
       try {
         setIsLoading(true);
         const rate = await exchangeRateService.getRate(fromCurrency, targetCurrency);
         
-        if (rate === null) {
-          console.error(`Could not get exchange rate for ${fromCurrency} to ${targetCurrency}`);
-          throw new Error(`Could not get exchange rate for ${fromCurrency} to ${targetCurrency}`);
+        if (rate === null || rate <= 0) {
+          console.warn(`Invalid exchange rate for ${fromCurrency} to ${targetCurrency}`);
+          return amount; // Return original amount as fallback
         }
         
-        console.log(`Conversion rate from ${fromCurrency} to ${targetCurrency}: ${rate}`);
+        console.log(`Got exchange rate from ${fromCurrency} to ${targetCurrency}: ${rate}`);
         
         // Cache the rate
         setRates((prevRates) => ({
@@ -46,11 +59,7 @@ export function useCurrencyConversion() {
         return convertedAmount;
       } catch (error) {
         console.error('Error converting currency:', error);
-        toast({
-          title: "Conversion Error",
-          description: "Failed to convert currency. Using original amount.",
-          variant: "destructive",
-        });
+        // Don't show toast for every conversion error, just log it
         return amount; // Return original amount as fallback
       } finally {
         setIsLoading(false);
@@ -61,6 +70,7 @@ export function useCurrencyConversion() {
 
   // Clear rates cache when target currency changes
   useEffect(() => {
+    console.log('Target currency changed to:', targetCurrency);
     setRates({});
   }, [targetCurrency]);
 

@@ -301,18 +301,34 @@ export const familyService = {
     }
   },
   
-  // Get spending data for the pie chart
-  getSpendingData: async (userId: string, memberId?: string | number): Promise<SpendingDataItem[]> => {
+  // Delete family member
+  deleteFamilyMember: async (memberId: string): Promise<void> => {
     try {
-      // Fetch real spending data from expenses table if possible
+      const { error } = await supabase
+        .from('family_members')
+        .delete()
+        .eq('id', memberId);
+        
+      if (error) {
+        console.error('Error deleting family member:', error);
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error deleting family member:', error);
+      throw error;
+    }
+  },
+  
+  // Get spending data for the pie chart
+  getSpendingData: async (userId: string, memberId?: string): Promise<SpendingDataItem[]> => {
+    try {
       let query = supabase
         .from('expenses')
         .select('category, amount')
         .eq('user_id', userId);
         
-      if (memberId !== undefined) {
-        // Always convert memberId to string before using it in the query
-        query = query.eq('member_id', String(memberId));
+      if (memberId) {
+        query = query.eq('member_id', memberId);
       }
       
       const { data, error } = await query;
@@ -322,40 +338,45 @@ export const familyService = {
         throw error;
       }
       
-      if (data && data.length > 0) {
-        // Group data by category and sum amounts
-        const categoryTotals: { [key: string]: number } = {};
-        data.forEach(expense => {
-          const category = expense.category;
-          categoryTotals[category] = (categoryTotals[category] || 0) + expense.amount;
-        });
-        
-        // Define colors for categories
-        const colors: { [key: string]: string } = {
-          'Education': '#9b87f5',
-          'Food': '#F2FCE2',
-          'Entertainment': '#FEC6A1',
-          'Savings': '#D3E4FD',
-          'Shopping': '#FFD6E0',
-          'Transport': '#C5F5CA',
-          'Bills': '#FFEB99',
-          'Other': '#E0E0E0',
-          'Toys': '#FFB6C1'
-        };
-        
-        // Convert to array format needed for pie chart
-        return Object.keys(categoryTotals).map(category => ({
-          name: category,
-          value: categoryTotals[category],
-          color: colors[category] || '#888888'
-        }));
+      if (!data || data.length === 0) {
+        return [];
       }
       
-      // Return empty data if no expenses exist
-      return [];
+      // Group by category
+      const categoryTotals = new Map<string, number>();
+      data.forEach(expense => {
+        const category = expense.category;
+        const currentTotal = categoryTotals.get(category) || 0;
+        categoryTotals.set(category, currentTotal + expense.amount);
+      });
+      
+      // Define colors
+      const colorMap = new Map([
+        ['Education', '#9b87f5'],
+        ['Food', '#F2FCE2'], 
+        ['Entertainment', '#FEC6A1'],
+        ['Savings', '#D3E4FD'],
+        ['Shopping', '#FFD6E0'],
+        ['Transport', '#C5F5CA'],
+        ['Bills', '#FFEB99'],
+        ['Other', '#E0E0E0'],
+        ['Toys', '#FFB6C1']
+      ]);
+      
+      // Convert to result array
+      const result: SpendingDataItem[] = [];
+      categoryTotals.forEach((value, category) => {
+        result.push({
+          name: category,
+          value: value,
+          color: colorMap.get(category) || '#888888'
+        });
+      });
+      
+      return result;
     } catch (error) {
       console.error('Error fetching spending data:', error);
-      throw error;
+      return [];
     }
   }
 };

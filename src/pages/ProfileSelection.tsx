@@ -1,13 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, ShieldCheck } from 'lucide-react';
-import { motion } from '@/components/ui/motion';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import { familyService } from '@/services/familyService';
+import ProfileCard from '@/components/ProfileCard';
 
 const ProfileSelection = () => {
   const navigate = useNavigate();
@@ -16,26 +15,26 @@ const ProfileSelection = () => {
   const [familyMembers, setFamilyMembers] = useState<Array<any>>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const loadFamilyMembers = async () => {
-      if (user) {
-        try {
-          setIsLoading(true);
-          const members = await familyService.getFamilyMembers(user.id);
-          setFamilyMembers(members);
-        } catch (error) {
-          console.error("Error loading family members:", error);
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Failed to load family profiles."
-          });
-        } finally {
-          setIsLoading(false);
-        }
+  const loadFamilyMembers = async () => {
+    if (user) {
+      try {
+        setIsLoading(true);
+        const members = await familyService.getFamilyMembers(user.id);
+        setFamilyMembers(members);
+      } catch (error) {
+        console.error("Error loading family members:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load family profiles."
+        });
+      } finally {
+        setIsLoading(false);
       }
-    };
+    }
+  };
 
+  useEffect(() => {
     loadFamilyMembers();
   }, [user, toast]);
 
@@ -92,32 +91,16 @@ const ProfileSelection = () => {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
           {familyMembers.map((member) => (
-            <motion.div
+            <ProfileCard
               key={member.id}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="flex flex-col items-center cursor-pointer"
-              onClick={() => handleProfileSelect(member)}
-            >
-              <Avatar className="w-28 h-28 border-4 border-transparent hover:border-purple-500 transition-all duration-300">
-                {member.image.startsWith('http') ? (
-                  <AvatarImage src={member.image} alt={member.name} />
-                ) : (
-                  <AvatarFallback className="text-5xl bg-purple-600 text-white">
-                    {member.image}
-                  </AvatarFallback>
-                )}
-              </Avatar>
-              <p className="mt-3 text-lg font-medium text-white">{member.name}</p>
-              {member.isParent && (
-                <span className="mt-1 text-xs text-purple-400">Parent</span>
-              )}
-            </motion.div>
+              member={member}
+              onSelect={handleProfileSelect}
+              onUpdate={loadFamilyMembers}
+              showActions={true}
+            />
           ))}
           
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <div 
             className="flex flex-col items-center cursor-pointer"
             onClick={handleAddProfile}
           >
@@ -125,7 +108,7 @@ const ProfileSelection = () => {
               <PlusCircle className="w-12 h-12 text-gray-500 hover:text-purple-500 transition-all duration-300" />
             </div>
             <p className="mt-3 text-lg font-medium text-white">Add Profile</p>
-          </motion.div>
+          </div>
         </div>
       )}
     </div>

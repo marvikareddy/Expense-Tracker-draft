@@ -150,7 +150,7 @@ export const familyService = {
         throw fetchError;
       }
       
-      const newSavings = (parseFloat(currentMember.savings) || 0) + amount;
+      const newSavings = (parseFloat(String(currentMember.savings)) || 0) + amount;
       
       // Update the member with new funds
       const { data, error } = await supabase

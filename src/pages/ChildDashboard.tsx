@@ -7,13 +7,11 @@ import {
   PiggyBank, 
   Gift, 
   Loader2, 
-  Plus,
   ArrowLeft,
   PlusCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
-import { childService, ChildExpense } from '@/services/childService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { 
@@ -31,17 +29,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from "@/hooks/use-toast";
+
+interface ChildExpense {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+  category: string;
+}
 
 const ChildDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getCurrencySymbol } = useCurrency();
+  const { toast } = useToast();
   const currencySymbol = getCurrencySymbol();
   
   const [isLoading, setIsLoading] = useState(true);
   const [pocketMoney, setPocketMoney] = useState(0);
   const [savingsGoal, setSavingsGoal] = useState({ current: 0, target: 0, item: '' });
-  const [rewards, setRewards] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<ChildExpense[]>([]);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
   
@@ -62,28 +69,44 @@ const ChildDashboard = () => {
       if (user && selectedProfile) {
         setIsLoading(true);
         try {
-          const childId = selectedProfile.id;
-          const [pocket, savings, rewardsList, expensesList] = await Promise.all([
-            childService.getPocketMoney(childId),
-            childService.getSavingsGoal(childId),
-            childService.getRewards(childId),
-            childService.getExpenses(childId)
-          ]);
+          // Set pocket money from selected profile
+          setPocketMoney(selectedProfile.allowance || 0);
           
-          setPocketMoney(pocket);
-          setSavingsGoal(savings);
-          setRewards(rewardsList);
-          setExpenses(expensesList);
+          // Set savings goal from selected profile
+          setSavingsGoal({
+            current: selectedProfile.savings || 0,
+            target: 100, // Default target
+            item: 'My Goal'
+          });
+          
+          // Mock expenses data for now
+          setExpenses([
+            {
+              id: '1',
+              date: new Date().toISOString().split('T')[0],
+              description: 'Candy',
+              amount: 5.50,
+              category: 'Food'
+            }
+          ]);
         } catch (error) {
           console.error("Error loading child data:", error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to load data. Please try again."
+          });
         } finally {
           setIsLoading(false);
         }
+      } else {
+        // If no profile selected, redirect to profiles
+        navigate('/profiles');
       }
     };
     
     loadChildData();
-  }, [user, selectedProfile]);
+  }, [user, selectedProfile, navigate, toast]);
   
   // Navigate back to profiles
   const handleBackToProfiles = () => {
@@ -98,21 +121,27 @@ const ChildDashboard = () => {
   // Handle new expense submission
   const handleSubmitExpense = async () => {
     if (!newExpense.description || !newExpense.amount || parseFloat(newExpense.amount) <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please fill in all fields with valid values."
+      });
       return;
     }
     
     try {
       setIsAddingExpense(true);
-      await childService.addExpense(
-        user?.id || '',
-        selectedProfile?.id,
-        {
-          description: newExpense.description,
-          amount: parseFloat(newExpense.amount),
-          category: newExpense.category,
-          date: new Date().toISOString().split('T')[0]
-        }
-      );
+      
+      // Add to expenses list
+      const newExpenseItem: ChildExpense = {
+        id: Date.now().toString(),
+        description: newExpense.description,
+        amount: parseFloat(newExpense.amount),
+        category: newExpense.category,
+        date: new Date().toISOString().split('T')[0]
+      };
+      
+      setExpenses(prev => [newExpenseItem, ...prev]);
       
       // Reset form
       setNewExpense({
@@ -121,15 +150,34 @@ const ChildDashboard = () => {
         category: 'Entertainment'
       });
       
-      // Refresh expenses
-      const updatedExpenses = await childService.getExpenses(selectedProfile?.id);
-      setExpenses(updatedExpenses);
+      toast({
+        title: "Success",
+        description: "Expense added successfully!"
+      });
     } catch (error) {
       console.error("Error adding expense:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to add expense. Please try again."
+      });
     } finally {
       setIsAddingExpense(false);
     }
   };
+
+  if (!selectedProfile) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-white text-center">
+          <p className="mb-4">No profile selected</p>
+          <Button onClick={() => navigate('/profiles')}>
+            Select Profile
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -145,10 +193,10 @@ const ChildDashboard = () => {
               <ArrowLeft className="h-4 w-4 mr-2" /> 
               Back to Profiles
             </Button>
-            <h1 className="text-3xl font-bold">{selectedProfile?.name || 'Child'}'s Wallet</h1>
+            <h1 className="text-3xl font-bold">{selectedProfile.name}'s Wallet</h1>
           </div>
           <Avatar className="w-10 h-10 bg-purple-600">
-            <AvatarFallback>{selectedProfile?.image || '👤'}</AvatarFallback>
+            <AvatarFallback className="text-2xl">{selectedProfile.image || '👤'}</AvatarFallback>
           </Avatar>
         </div>
         
@@ -207,7 +255,7 @@ const ChildDashboard = () => {
                 <Skeleton className="h-6 w-24 bg-gray-700" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{rewards.length} Available</div>
+                  <div className="text-2xl font-bold">3 Available</div>
                   <p className="text-xs text-gray-400">
                     Great job saving!
                   </p>
@@ -217,7 +265,7 @@ const ChildDashboard = () => {
           </Card>
         </div>
         
-        <div className="grid gap-6 md:grid-cols-2 mb-6">
+        <div className="grid gap-6 md:grid-cols-2">
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader className="border-b border-gray-700">
               <div className="flex justify-between items-center">
@@ -343,32 +391,41 @@ const ChildDashboard = () => {
               <CardTitle>My Rewards</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              {isLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
-                </div>
-              ) : rewards.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-gray-400">No rewards yet</p>
-                  <p className="text-sm text-gray-500">Keep saving to earn rewards</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-700">
-                  {rewards.map(reward => (
-                    <div key={reward.id} className="p-4 hover:bg-gray-750 transition-colors">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="text-gray-200 font-medium">{reward.name}</h4>
-                          <p className="text-sm text-gray-400">{reward.description}</p>
-                        </div>
-                        <Button variant="outline" size="sm" className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
-                          Redeem
-                        </Button>
-                      </div>
+              <div className="divide-y divide-gray-700">
+                <div className="p-4 hover:bg-gray-750 transition-colors">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="text-gray-200 font-medium">Extra TV Time</h4>
+                      <p className="text-sm text-gray-400">30 minutes of extra screen time</p>
                     </div>
-                  ))}
+                    <Button variant="outline" size="sm" className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
+                      Redeem
+                    </Button>
+                  </div>
                 </div>
-              )}
+                <div className="p-4 hover:bg-gray-750 transition-colors">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="text-gray-200 font-medium">Ice Cream Trip</h4>
+                      <p className="text-sm text-gray-400">Visit to the ice cream shop</p>
+                    </div>
+                    <Button variant="outline" size="sm" className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
+                      Redeem
+                    </Button>
+                  </div>
+                </div>
+                <div className="p-4 hover:bg-gray-750 transition-colors">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="text-gray-200 font-medium">Game Time</h4>
+                      <p className="text-sm text-gray-400">1 hour of video games</p>
+                    </div>
+                    <Button variant="outline" size="sm" className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
+                      Redeem
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

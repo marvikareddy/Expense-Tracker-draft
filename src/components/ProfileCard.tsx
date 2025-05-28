@@ -87,15 +87,21 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
+  const handleDelete = async () => {
     try {
       setIsDeleting(true);
       console.log('Starting delete for member:', member.id);
       
       await familyService.deleteFamilyMember(member.id);
+      
+      // Clear selected profile if it's the one being deleted
+      const selectedProfile = localStorage.getItem('selectedProfile');
+      if (selectedProfile) {
+        const parsed = JSON.parse(selectedProfile);
+        if (parsed.id === member.id) {
+          localStorage.removeItem('selectedProfile');
+        }
+      }
       
       toast({
         title: "Success",
@@ -293,22 +299,20 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
                     Cancel
                   </Button>
                 </DialogClose>
-                <DialogClose asChild>
-                  <Button 
-                    onClick={handleDelete} 
-                    disabled={isDeleting}
-                    className="bg-red-600 hover:bg-red-700"
-                  >
-                    {isDeleting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Deleting...
-                      </>
-                    ) : (
-                      'Delete'
-                    )}
-                  </Button>
-                </DialogClose>
+                <Button 
+                  onClick={handleDelete} 
+                  disabled={isDeleting}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete Profile'
+                  )}
+                </Button>
               </div>
             </DialogContent>
           </Dialog>

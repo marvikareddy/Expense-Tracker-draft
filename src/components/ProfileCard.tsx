@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -90,10 +91,15 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
     e.preventDefault();
     e.stopPropagation();
     
+    if (!confirm(`Are you sure you want to delete ${member.name}'s profile? This action cannot be undone.`)) {
+      return;
+    }
+    
     try {
       setIsDeleting(true);
       console.log('Starting delete for member:', member.id);
       
+      // Delete from database
       await familyService.deleteFamilyMember(member.id);
       
       // Clear selected profile if it's the one being deleted
@@ -105,11 +111,18 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
         }
       }
       
+      // Clear any local storage data for this member
+      const expenseKey = `expenses_${member.id}`;
+      const rewardKey = `rewards_${member.id}`;
+      localStorage.removeItem(expenseKey);
+      localStorage.removeItem(rewardKey);
+      
       toast({
         title: "Success",
         description: `${member.name}'s profile has been deleted`
       });
       
+      // Trigger update to refresh the profiles list
       onUpdate();
     } catch (error) {
       console.error("Error deleting profile:", error);

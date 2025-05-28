@@ -311,9 +311,9 @@ const ChildDashboard = () => {
                 <Skeleton className="h-6 w-24 bg-gray-700" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">3 Available</div>
+                  <div className="text-2xl font-bold">{rewards.length} Available</div>
                   <p className="text-xs text-gray-400">
-                    Great job saving!
+                    {rewards.length > 0 ? 'Great job saving!' : 'Keep saving to earn rewards!'}
                   </p>
                 </>
               )}

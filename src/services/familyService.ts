@@ -31,7 +31,7 @@ export const familyService = {
   getFamilyMembers: async (userId: string): Promise<FamilyMember[]> => {
     try {
       console.log('Fetching family members for user:', userId);
-      const userIdStr = String(userId); // Ensure string type
+      const userIdStr = String(userId);
 
       const { data, error } = await supabase
         .from('family_members')
@@ -51,9 +51,9 @@ export const familyService = {
       const members = data.map(member => ({
         id: member.id,
         name: member.name,
-        age: member.age || 0,
-        savings: parseFloat(member.savings) || 0,
-        allowance: parseFloat(member.allowance) || 0,
+        age: Number(member.age) || 0,
+        savings: parseFloat(String(member.savings)) || 0,
+        allowance: parseFloat(String(member.allowance)) || 0,
         image: member.image || '👤',
         isParent: member.is_parent || false
       }));
@@ -69,16 +69,16 @@ export const familyService = {
   addFamilyMember: async (userId: string, member: Partial<FamilyMember>): Promise<FamilyMember> => {
     try {
       console.log('Adding family member:', member);
-      const userIdStr = String(userId); // Ensure string
+      const userIdStr = String(userId);
 
       const { data, error } = await supabase
         .from('family_members')
         .insert([{
           user_id: userIdStr,
           name: member.name,
-          age: member.age || 0,
-          savings: member.savings || 0,
-          allowance: member.allowance || 0,
+          age: Number(member.age) || 0,
+          savings: Number(member.savings) || 0,
+          allowance: Number(member.allowance) || 0,
           image: member.image || '👤',
           is_parent: member.isParent || false
         }])
@@ -93,9 +93,9 @@ export const familyService = {
       const newMember = {
         id: data.id,
         name: data.name,
-        age: data.age || 0,
-        savings: parseFloat(data.savings) || 0,
-        allowance: parseFloat(data.allowance) || 0,
+        age: Number(data.age) || 0,
+        savings: parseFloat(String(data.savings)) || 0,
+        allowance: parseFloat(String(data.allowance)) || 0,
         image: data.image || '👤',
         isParent: data.is_parent || false
       };
@@ -111,13 +111,13 @@ export const familyService = {
   updateFamilyMember: async (memberId: string, updates: Partial<FamilyMember>): Promise<FamilyMember> => {
     try {
       console.log('Updating family member:', memberId, updates);
-      const memberIdStr = String(memberId); // Ensure string
+      const memberIdStr = String(memberId);
 
       const updateData: Record<string, any> = {};
       if (updates.name !== undefined) updateData.name = updates.name;
-      if (updates.age !== undefined) updateData.age = updates.age;
-      if (updates.savings !== undefined) updateData.savings = updates.savings;
-      if (updates.allowance !== undefined) updateData.allowance = updates.allowance;
+      if (updates.age !== undefined) updateData.age = Number(updates.age);
+      if (updates.savings !== undefined) updateData.savings = Number(updates.savings);
+      if (updates.allowance !== undefined) updateData.allowance = Number(updates.allowance);
       if (updates.image !== undefined) updateData.image = updates.image;
       if (updates.isParent !== undefined) updateData.is_parent = updates.isParent;
 
@@ -140,9 +140,9 @@ export const familyService = {
       const updatedMember = {
         id: data.id,
         name: data.name,
-        age: data.age || 0,
-        savings: parseFloat(data.savings) || 0,
-        allowance: parseFloat(data.allowance) || 0,
+        age: Number(data.age) || 0,
+        savings: parseFloat(String(data.savings)) || 0,
+        allowance: parseFloat(String(data.allowance)) || 0,
         image: data.image || '👤',
         isParent: data.is_parent || false
       };
@@ -158,7 +158,7 @@ export const familyService = {
   deleteFamilyMember: async (memberId: string): Promise<void> => {
     try {
       console.log('Deleting family member:', memberId);
-      const memberIdStr = String(memberId); // Ensure string
+      const memberIdStr = String(memberId);
 
       // Delete related savings goals first
       const { error: goalsError } = await supabase
@@ -191,7 +191,7 @@ export const familyService = {
   addFunds: async (memberId: string, amount: number): Promise<FamilyMember> => {
     try {
       console.log('Adding funds to member:', memberId, amount);
-      const memberIdStr = String(memberId); // Ensure string
+      const memberIdStr = String(memberId);
       
       const { data: currentMember, error: fetchError } = await supabase
         .from('family_members')
@@ -204,7 +204,7 @@ export const familyService = {
         throw fetchError;
       }
 
-      const currentSavings = parseFloat(currentMember.savings) || 0;
+      const currentSavings = parseFloat(String(currentMember.savings)) || 0;
       const newSavings = currentSavings + amount;
 
       const { data, error } = await supabase
@@ -222,9 +222,9 @@ export const familyService = {
       const updatedMember = {
         id: data.id,
         name: data.name,
-        age: data.age || 0,
-        savings: parseFloat(data.savings) || 0,
-        allowance: parseFloat(data.allowance) || 0,
+        age: Number(data.age) || 0,
+        savings: parseFloat(String(data.savings)) || 0,
+        allowance: parseFloat(String(data.allowance)) || 0,
         image: data.image || '👤',
         isParent: data.is_parent || false
       };
@@ -240,7 +240,7 @@ export const familyService = {
   getSavingsGoals: async (userId: string): Promise<SavingsGoal[]> => {
     try {
       console.log('Fetching savings goals for user:', userId);
-      const userIdStr = String(userId); // Ensure string
+      const userIdStr = String(userId);
       
       const { data, error } = await supabase
         .from('savings_goals')
@@ -258,8 +258,8 @@ export const familyService = {
       }
 
       const goals = data.map(goal => {
-        const currentAmount = parseFloat(goal.current_amount) || 0;
-        const targetAmount = parseFloat(goal.target_amount) || 0;
+        const currentAmount = parseFloat(String(goal.current_amount)) || 0;
+        const targetAmount = parseFloat(String(goal.target_amount)) || 0;
         const percentComplete = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0;
 
         return {
@@ -293,8 +293,8 @@ export const familyService = {
           user_id: userIdStr,
           member_id: memberIdStr,
           name: goal.name,
-          current_amount: goal.currentAmount || 0,
-          target_amount: goal.targetAmount || 0,
+          current_amount: Number(goal.currentAmount) || 0,
+          target_amount: Number(goal.targetAmount) || 0,
           target_date: goal.targetDate || ''
         }])
         .select()
@@ -305,8 +305,8 @@ export const familyService = {
         throw error;
       }
 
-      const currentAmount = parseFloat(data.current_amount) || 0;
-      const targetAmount = parseFloat(data.target_amount) || 0;
+      const currentAmount = parseFloat(String(data.current_amount)) || 0;
+      const targetAmount = parseFloat(String(data.target_amount)) || 0;
       const percentComplete = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0;
 
       const newGoal = {
@@ -330,12 +330,12 @@ export const familyService = {
   updateSavingsGoal: async (goalId: string, updates: Partial<SavingsGoal>): Promise<SavingsGoal> => {
     try {
       console.log('Updating savings goal:', goalId, updates);
-      const goalIdStr = String(goalId); // Ensure string
+      const goalIdStr = String(goalId);
 
       const updateData: Record<string, any> = {};
       if (updates.name !== undefined) updateData.name = updates.name;
-      if (updates.currentAmount !== undefined) updateData.current_amount = updates.currentAmount;
-      if (updates.targetAmount !== undefined) updateData.target_amount = updates.targetAmount;
+      if (updates.currentAmount !== undefined) updateData.current_amount = Number(updates.currentAmount);
+      if (updates.targetAmount !== undefined) updateData.target_amount = Number(updates.targetAmount);
       if (updates.targetDate !== undefined) updateData.target_date = updates.targetDate;
 
       const { data, error } = await supabase
@@ -350,8 +350,8 @@ export const familyService = {
         throw error;
       }
 
-      const currentAmount = parseFloat(data.current_amount) || 0;
-      const targetAmount = parseFloat(data.target_amount) || 0;
+      const currentAmount = parseFloat(String(data.current_amount)) || 0;
+      const targetAmount = parseFloat(String(data.target_amount)) || 0;
       const percentComplete = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0;
 
       const updatedGoal = {
@@ -375,7 +375,7 @@ export const familyService = {
   deleteSavingsGoal: async (goalId: string): Promise<void> => {
     try {
       console.log('Deleting savings goal:', goalId);
-      const goalIdStr = String(goalId); // Ensure string
+      const goalIdStr = String(goalId);
 
       const { error } = await supabase
         .from('savings_goals')
@@ -394,5 +394,47 @@ export const familyService = {
     }
   },
 
-  // Optional: Add other methods if you have more features
+  getSpendingData: async (userId: string): Promise<SpendingDataItem[]> => {
+    try {
+      console.log('Fetching spending data for user:', userId);
+      const userIdStr = String(userId);
+      
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('category, amount')
+        .eq('user_id', userIdStr);
+
+      if (error) {
+        console.error('Error fetching spending data:', error);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        console.log('No spending data found');
+        return [];
+      }
+
+      // Group expenses by category and sum amounts
+      const categoryTotals: Record<string, number> = {};
+      data.forEach(expense => {
+        const category = expense.category || 'Other';
+        const amount = parseFloat(String(expense.amount)) || 0;
+        categoryTotals[category] = (categoryTotals[category] || 0) + amount;
+      });
+
+      // Convert to SpendingDataItem format with colors
+      const colors = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6366F1'];
+      const spendingData = Object.entries(categoryTotals).map(([name, value], index) => ({
+        name,
+        value,
+        color: colors[index % colors.length]
+      }));
+
+      console.log('Successfully fetched spending data:', spendingData);
+      return spendingData;
+    } catch (error) {
+      console.error('Error fetching spending data:', error);
+      throw error;
+    }
+  },
 };

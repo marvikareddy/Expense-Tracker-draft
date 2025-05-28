@@ -30,6 +30,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from "@/hooks/use-toast";
+import { familyService } from '@/services/familyService';
+import { rewardsService, Reward } from '@/services/rewardsService';
 
 interface ChildExpense {
   id: string;
@@ -50,6 +52,7 @@ const ChildDashboard = () => {
   const [pocketMoney, setPocketMoney] = useState(0);
   const [savingsGoal, setSavingsGoal] = useState({ current: 0, target: 0, item: '' });
   const [expenses, setExpenses] = useState<ChildExpense[]>([]);
+  const [rewards, setRewards] = useState<Reward[]>([]);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
   
   // New expense form state
@@ -79,16 +82,18 @@ const ChildDashboard = () => {
             item: 'My Goal'
           });
           
-          // Mock expenses data for now
-          setExpenses([
-            {
-              id: '1',
-              date: new Date().toISOString().split('T')[0],
-              description: 'Candy',
-              amount: 5.50,
-              category: 'Food'
-            }
-          ]);
+          // Load rewards
+          const memberRewards = rewardsService.getRewards(selectedProfile.id);
+          setRewards(memberRewards);
+          
+          // Load expenses from localStorage
+          const expenseKey = `expenses_${selectedProfile.id}`;
+          const storedExpenses = localStorage.getItem(expenseKey);
+          if (storedExpenses) {
+            setExpenses(JSON.parse(storedExpenses));
+          } else {
+            setExpenses([]);
+          }
         } catch (error) {
           console.error("Error loading child data:", error);
           toast({
@@ -129,6 +134,18 @@ const ChildDashboard = () => {
       return;
     }
     
+    const expenseAmount = parseFloat(newExpense.amount);
+    
+    // Check if user has enough pocket money
+    if (expenseAmount > pocketMoney) {
+      toast({
+        variant: "destructive",
+        title: "Insufficient Funds",
+        description: "You don't have enough pocket money for this expense."
+      });
+      return;
+    }
+    
     try {
       setIsAddingExpense(true);
       
@@ -136,12 +153,30 @@ const ChildDashboard = () => {
       const newExpenseItem: ChildExpense = {
         id: Date.now().toString(),
         description: newExpense.description,
-        amount: parseFloat(newExpense.amount),
+        amount: expenseAmount,
         category: newExpense.category,
         date: new Date().toISOString().split('T')[0]
       };
       
-      setExpenses(prev => [newExpenseItem, ...prev]);
+      const updatedExpenses = [newExpenseItem, ...expenses];
+      setExpenses(updatedExpenses);
+      
+      // Store expenses in localStorage
+      const expenseKey = `expenses_${selectedProfile.id}`;
+      localStorage.setItem(expenseKey, JSON.stringify(updatedExpenses));
+      
+      // Deduct from pocket money
+      const newPocketMoney = pocketMoney - expenseAmount;
+      setPocketMoney(newPocketMoney);
+      
+      // Update the profile's allowance in the database
+      await familyService.updateFamilyMember(selectedProfile.id, {
+        allowance: newPocketMoney
+      });
+      
+      // Update localStorage profile
+      const updatedProfile = { ...selectedProfile, allowance: newPocketMoney };
+      localStorage.setItem('selectedProfile', JSON.stringify(updatedProfile));
       
       // Reset form
       setNewExpense({
@@ -152,7 +187,7 @@ const ChildDashboard = () => {
       
       toast({
         title: "Success",
-        description: "Expense added successfully!"
+        description: "Expense added and pocket money updated!"
       });
     } catch (error) {
       console.error("Error adding expense:", error);
@@ -163,6 +198,27 @@ const ChildDashboard = () => {
       });
     } finally {
       setIsAddingExpense(false);
+    }
+  };
+
+  // Handle reward redemption
+  const handleRedeemReward = (rewardId: string) => {
+    try {
+      rewardsService.removeReward(selectedProfile.id, rewardId);
+      const updatedRewards = rewardsService.getRewards(selectedProfile.id);
+      setRewards(updatedRewards);
+      
+      toast({
+        title: "Reward Redeemed!",
+        description: "Enjoy your reward!"
+      });
+    } catch (error) {
+      console.error("Error redeeming reward:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to redeem reward. Please try again."
+      });
     }
   };
 
@@ -391,41 +447,33 @@ const ChildDashboard = () => {
               <CardTitle>My Rewards</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="divide-y divide-gray-700">
-                <div className="p-4 hover:bg-gray-750 transition-colors">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="text-gray-200 font-medium">Extra TV Time</h4>
-                      <p className="text-sm text-gray-400">30 minutes of extra screen time</p>
-                    </div>
-                    <Button variant="outline" size="sm" className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
-                      Redeem
-                    </Button>
-                  </div>
+              {rewards.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-400">No rewards available</p>
+                  <p className="text-sm text-gray-500">Keep saving to earn rewards!</p>
                 </div>
-                <div className="p-4 hover:bg-gray-750 transition-colors">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="text-gray-200 font-medium">Ice Cream Trip</h4>
-                      <p className="text-sm text-gray-400">Visit to the ice cream shop</p>
+              ) : (
+                <div className="divide-y divide-gray-700">
+                  {rewards.map(reward => (
+                    <div key={reward.id} className="p-4 hover:bg-gray-750 transition-colors">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="text-gray-200 font-medium">{reward.title}</h4>
+                          <p className="text-sm text-gray-400">{reward.description}</p>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700"
+                          onClick={() => handleRedeemReward(reward.id)}
+                        >
+                          Redeem
+                        </Button>
+                      </div>
                     </div>
-                    <Button variant="outline" size="sm" className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
-                      Redeem
-                    </Button>
-                  </div>
+                  ))}
                 </div>
-                <div className="p-4 hover:bg-gray-750 transition-colors">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="text-gray-200 font-medium">Game Time</h4>
-                      <p className="text-sm text-gray-400">1 hour of video games</p>
-                    </div>
-                    <Button variant="outline" size="sm" className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
-                      Redeem
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>

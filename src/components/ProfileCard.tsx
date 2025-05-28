@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -87,7 +86,10 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     try {
       setIsDeleting(true);
       console.log('Starting delete for member:', member.id);
@@ -271,51 +273,19 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
             </DialogContent>
           </Dialog>
 
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button
-                size="sm"
-                variant="outline"
-                className="bg-red-600 hover:bg-red-700 text-white border-red-600 h-8 w-8 p-0"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-gray-800 text-white border-gray-700" onClick={(e) => e.stopPropagation()}>
-              <DialogHeader>
-                <DialogTitle>Delete {member.name}'s Profile</DialogTitle>
-              </DialogHeader>
-              <p className="text-gray-300 py-4">
-                Are you sure you want to delete {member.name}'s profile? This action cannot be undone and will also delete any associated savings goals.
-              </p>
-              <div className="flex justify-end gap-3">
-                <DialogClose asChild>
-                  <Button 
-                    variant="outline" 
-                    className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700"
-                    disabled={isDeleting}
-                  >
-                    Cancel
-                  </Button>
-                </DialogClose>
-                <Button 
-                  onClick={handleDelete} 
-                  disabled={isDeleting}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  {isDeleting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Deleting...
-                    </>
-                  ) : (
-                    'Delete Profile'
-                  )}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button
+            size="sm"
+            variant="outline"
+            className="bg-red-600 hover:bg-red-700 text-white border-red-600 h-8 w-8 p-0"
+            onClick={handleDelete}
+            disabled={isDeleting}
+          >
+            {isDeleting ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Trash2 className="h-3 w-3" />
+            )}
+          </Button>
         </div>
       )}
     </div>

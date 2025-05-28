@@ -2,10 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, ShieldCheck } from 'lucide-react';
+import { PlusCircle, ShieldCheck, RotateCcw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import { familyService, FamilyMember } from '@/services/familyService';
+import { resetService } from '@/services/resetService';
 import ProfileCard from '@/components/ProfileCard';
 
 const ProfileSelection = () => {
@@ -15,6 +16,7 @@ const ProfileSelection = () => {
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   const loadFamilyMembers = async () => {
     if (!user) return;
@@ -52,6 +54,38 @@ const ProfileSelection = () => {
     }
   };
 
+  const handleReset = async () => {
+    if (!user || isResetting) return;
+    
+    if (!confirm('Are you sure you want to reset all account data? This will delete all family members, expenses, and savings goals. This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      setIsResetting(true);
+      console.log('Resetting all account data');
+      
+      await resetService.resetAllAccountData(user.id);
+      
+      toast({
+        title: "Account Reset",
+        description: "All account data has been successfully reset."
+      });
+      
+      // Reload the family members to show empty state
+      await loadFamilyMembers();
+    } catch (error) {
+      console.error("Error resetting account:", error);
+      toast({
+        variant: "destructive",
+        title: "Reset Failed",
+        description: "Failed to reset account data. Please try again."
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   useEffect(() => {
     loadFamilyMembers();
   }, [user]);
@@ -81,7 +115,21 @@ const ProfileSelection = () => {
         <h1 className="text-4xl font-bold text-white">ExpenSmart</h1>
       </div>
       
-      <h2 className="text-2xl font-bold text-white mb-10">Who's managing expenses today?</h2>
+      <h2 className="text-2xl font-bold text-white mb-6">Who's managing expenses today?</h2>
+      
+      {/* Reset Button */}
+      <div className="mb-6">
+        <Button 
+          onClick={handleReset}
+          disabled={isResetting}
+          variant="outline"
+          size="sm"
+          className="bg-red-600 hover:bg-red-700 text-white border-red-600"
+        >
+          <RotateCcw className="mr-2 h-4 w-4" />
+          {isResetting ? 'Resetting...' : 'Reset Account'}
+        </Button>
+      </div>
       
       {isLoading ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">

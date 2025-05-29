@@ -57,29 +57,37 @@ const ProfileSelection = () => {
   const handleReset = async () => {
     if (!user || isResetting) return;
     
-    if (!confirm('Are you sure you want to reset all account data? This will delete all family members, expenses, and savings goals. This action cannot be undone.')) {
+    if (!confirm('⚠️ WARNING: This will DELETE ALL DATA from the entire database, not just your account. This includes all users, family members, expenses, and settings. This action CANNOT be undone. Are you absolutely sure you want to proceed?')) {
+      return;
+    }
+    
+    // Double confirmation for complete reset
+    if (!confirm('This is your final warning. You are about to delete EVERYTHING in the database. Type YES in your mind and click OK only if you want to proceed with the complete reset.')) {
       return;
     }
     
     try {
       setIsResetting(true);
-      console.log('Resetting all account data');
+      console.log('Resetting entire database');
       
       await resetService.resetAllAccountData(user.id);
       
       toast({
-        title: "Account Reset",
-        description: "All account data has been successfully reset."
+        title: "Complete Database Reset",
+        description: "All data has been permanently deleted from the database. You can now start fresh."
       });
+      
+      // Clear all localStorage
+      localStorage.clear();
       
       // Reload the family members to show empty state
       await loadFamilyMembers();
     } catch (error) {
-      console.error("Error resetting account:", error);
+      console.error("Error resetting database:", error);
       toast({
         variant: "destructive",
         title: "Reset Failed",
-        description: "Failed to reset account data. Please try again."
+        description: "Failed to reset the database. Please try again."
       });
     } finally {
       setIsResetting(false);
@@ -117,7 +125,7 @@ const ProfileSelection = () => {
       
       <h2 className="text-2xl font-bold text-white mb-6">Who's managing expenses today?</h2>
       
-      {/* Reset Button */}
+      {/* Complete Reset Button */}
       <div className="mb-6">
         <Button 
           onClick={handleReset}
@@ -127,7 +135,7 @@ const ProfileSelection = () => {
           className="bg-red-600 hover:bg-red-700 text-white border-red-600"
         >
           <RotateCcw className="mr-2 h-4 w-4" />
-          {isResetting ? 'Resetting...' : 'Reset Account'}
+          {isResetting ? 'Resetting Database...' : 'Complete Database Reset'}
         </Button>
       </div>
       

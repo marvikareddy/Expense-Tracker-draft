@@ -18,8 +18,11 @@ export const resetService = {
         localStorage.removeItem(rewardKey);
       });
       
-      // Clear selected profile
+      // Clear selected profile and other app data
       localStorage.removeItem('selectedProfile');
+      localStorage.removeItem('offlineExpenses');
+      
+      // Delete all data in the correct order to avoid foreign key constraints
       
       // Delete all savings goals for this user
       const { error: goalsError } = await supabase

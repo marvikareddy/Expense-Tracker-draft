@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -72,15 +71,28 @@ const ChildDashboard = () => {
       if (user && selectedProfile) {
         setIsLoading(true);
         try {
-          // Set pocket money from selected profile
-          setPocketMoney(selectedProfile.allowance || 0);
+          // Load fresh profile data from database
+          const familyMembers = await familyService.getFamilyMembers(user.id);
+          const currentProfile = familyMembers.find(member => member.id === selectedProfile.id);
           
-          // Set savings goal from selected profile
-          setSavingsGoal({
-            current: selectedProfile.savings || 0,
-            target: 100, // Default target
-            item: 'My Goal'
-          });
+          if (currentProfile) {
+            // Set pocket money from database
+            setPocketMoney(currentProfile.allowance || 0);
+            
+            // Set savings goal from profile
+            setSavingsGoal({
+              current: currentProfile.savings || 0,
+              target: 100, // Default target
+              item: 'My Goal'
+            });
+            
+            // Update selectedProfile in localStorage with fresh data
+            localStorage.setItem('selectedProfile', JSON.stringify(currentProfile));
+          } else {
+            // Profile not found, redirect to profiles
+            navigate('/profiles');
+            return;
+          }
           
           // Load rewards
           const memberRewards = rewardsService.getRewards(selectedProfile.id);
@@ -111,7 +123,7 @@ const ChildDashboard = () => {
     };
     
     loadChildData();
-  }, [user, selectedProfile, navigate, toast]);
+  }, [user, selectedProfile?.id, navigate, toast]);
   
   // Navigate back to profiles
   const handleBackToProfiles = () => {
@@ -141,7 +153,7 @@ const ChildDashboard = () => {
       toast({
         variant: "destructive",
         title: "Insufficient Funds",
-        description: "You don't have enough pocket money for this expense."
+        description: `You don't have enough pocket money for this expense. You have ${currencySymbol}${pocketMoney.toFixed(2)} available.`
       });
       return;
     }
@@ -269,7 +281,7 @@ const ChildDashboard = () => {
                 <>
                   <div className="text-2xl font-bold">{currencySymbol}{pocketMoney.toFixed(2)}</div>
                   <p className="text-xs text-gray-400">
-                    Weekly allowance
+                    Available to spend
                   </p>
                 </>
               )}

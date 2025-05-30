@@ -44,12 +44,65 @@ export function useCurrencyConversion() {
         
         if (rate === null || rate <= 0) {
           console.warn(`Invalid exchange rate for ${fromCurrency} to ${targetCurrency}, using fallback`);
-          // Use fallback conversion rates for common currencies
+          
+          // Updated fallback conversion rates based on current market rates (INR as base)
           const fallbackRates: Record<string, Record<string, number>> = {
-            'USD': { 'INR': 83, 'EUR': 0.85, 'GBP': 0.73, 'JPY': 110 },
-            'INR': { 'USD': 0.012, 'EUR': 0.010, 'GBP': 0.009, 'JPY': 1.33 },
-            'EUR': { 'USD': 1.18, 'INR': 98, 'GBP': 0.86, 'JPY': 130 },
-            'GBP': { 'USD': 1.37, 'INR': 114, 'EUR': 1.16, 'JPY': 151 }
+            'USD': { 
+              'INR': 85.74, 
+              'EUR': 85.74 / 97.05, // USD to EUR via INR
+              'GBP': 85.74 / 115.76, // USD to GBP via INR
+              'JPY': 85.74 / 0.5942, // USD to JPY via INR
+              'CAD': 85.74 / 62.31, // USD to CAD via INR
+              'AUD': 85.74 / 56.24 // USD to AUD via INR
+            },
+            'EUR': { 
+              'INR': 97.05, 
+              'USD': 97.05 / 85.74, // EUR to USD via INR
+              'GBP': 97.05 / 115.76, // EUR to GBP via INR
+              'JPY': 97.05 / 0.5942, // EUR to JPY via INR
+              'CAD': 97.05 / 62.31, // EUR to CAD via INR
+              'AUD': 97.05 / 56.24 // EUR to AUD via INR
+            },
+            'GBP': { 
+              'INR': 115.76, 
+              'USD': 115.76 / 85.74, // GBP to USD via INR
+              'EUR': 115.76 / 97.05, // GBP to EUR via INR
+              'JPY': 115.76 / 0.5942, // GBP to JPY via INR
+              'CAD': 115.76 / 62.31, // GBP to CAD via INR
+              'AUD': 115.76 / 56.24 // GBP to AUD via INR
+            },
+            'JPY': { 
+              'INR': 0.5942, 
+              'USD': 0.5942 / 85.74, // JPY to USD via INR
+              'EUR': 0.5942 / 97.05, // JPY to EUR via INR
+              'GBP': 0.5942 / 115.76, // JPY to GBP via INR
+              'CAD': 0.5942 / 62.31, // JPY to CAD via INR
+              'AUD': 0.5942 / 56.24 // JPY to AUD via INR
+            },
+            'CAD': { 
+              'INR': 62.31, 
+              'USD': 62.31 / 85.74, // CAD to USD via INR
+              'EUR': 62.31 / 97.05, // CAD to EUR via INR
+              'GBP': 62.31 / 115.76, // CAD to GBP via INR
+              'JPY': 62.31 / 0.5942, // CAD to JPY via INR
+              'AUD': 62.31 / 56.24 // CAD to AUD via INR
+            },
+            'AUD': { 
+              'INR': 56.24, 
+              'USD': 56.24 / 85.74, // AUD to USD via INR
+              'EUR': 56.24 / 97.05, // AUD to EUR via INR
+              'GBP': 56.24 / 115.76, // AUD to GBP via INR
+              'JPY': 56.24 / 0.5942, // AUD to JPY via INR
+              'CAD': 56.24 / 62.31 // AUD to CAD via INR
+            },
+            'INR': { 
+              'USD': 1 / 85.74, 
+              'EUR': 1 / 97.05, 
+              'GBP': 1 / 115.76, 
+              'JPY': 1 / 0.5942,
+              'CAD': 1 / 62.31,
+              'AUD': 1 / 56.24
+            }
           };
           
           const fallbackRate = fallbackRates[fromCurrency]?.[targetCurrency] || 1;
@@ -79,10 +132,62 @@ export function useCurrencyConversion() {
         
         // Use fallback conversion without showing error toast for better UX
         const fallbackRates: Record<string, Record<string, number>> = {
-          'USD': { 'INR': 83, 'EUR': 0.85, 'GBP': 0.73, 'JPY': 110 },
-          'INR': { 'USD': 0.012, 'EUR': 0.010, 'GBP': 0.009, 'JPY': 1.33 },
-          'EUR': { 'USD': 1.18, 'INR': 98, 'GBP': 0.86, 'JPY': 130 },
-          'GBP': { 'USD': 1.37, 'INR': 114, 'EUR': 1.16, 'JPY': 151 }
+          'USD': { 
+            'INR': 85.74, 
+            'EUR': 85.74 / 97.05,
+            'GBP': 85.74 / 115.76,
+            'JPY': 85.74 / 0.5942,
+            'CAD': 85.74 / 62.31,
+            'AUD': 85.74 / 56.24
+          },
+          'EUR': { 
+            'INR': 97.05, 
+            'USD': 97.05 / 85.74,
+            'GBP': 97.05 / 115.76,
+            'JPY': 97.05 / 0.5942,
+            'CAD': 97.05 / 62.31,
+            'AUD': 97.05 / 56.24
+          },
+          'GBP': { 
+            'INR': 115.76, 
+            'USD': 115.76 / 85.74,
+            'EUR': 115.76 / 97.05,
+            'JPY': 115.76 / 0.5942,
+            'CAD': 115.76 / 62.31,
+            'AUD': 115.76 / 56.24
+          },
+          'JPY': { 
+            'INR': 0.5942, 
+            'USD': 0.5942 / 85.74,
+            'EUR': 0.5942 / 97.05,
+            'GBP': 0.5942 / 115.76,
+            'CAD': 0.5942 / 62.31,
+            'AUD': 0.5942 / 56.24
+          },
+          'CAD': { 
+            'INR': 62.31, 
+            'USD': 62.31 / 85.74,
+            'EUR': 62.31 / 97.05,
+            'GBP': 62.31 / 115.76,
+            'JPY': 62.31 / 0.5942,
+            'AUD': 62.31 / 56.24
+          },
+          'AUD': { 
+            'INR': 56.24, 
+            'USD': 56.24 / 85.74,
+            'EUR': 56.24 / 97.05,
+            'GBP': 56.24 / 115.76,
+            'JPY': 56.24 / 0.5942,
+            'CAD': 56.24 / 62.31
+          },
+          'INR': { 
+            'USD': 1 / 85.74, 
+            'EUR': 1 / 97.05, 
+            'GBP': 1 / 115.76, 
+            'JPY': 1 / 0.5942,
+            'CAD': 1 / 62.31,
+            'AUD': 1 / 56.24
+          }
         };
         
         const fallbackRate = fallbackRates[fromCurrency]?.[targetCurrency] || 1;

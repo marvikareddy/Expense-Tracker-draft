@@ -14,7 +14,8 @@ import {
   ArrowLeft,
   PlusCircle,
   CreditCard,
-  Loader2
+  Loader2,
+  Activity
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -31,13 +32,16 @@ import { Label } from '@/components/ui/label';
 import Navigation from '@/components/Navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
 import { familyService } from '@/services/familyService';
+import { expenseAPI, Expense } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 
 const ParentDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { currency, getCurrencySymbol } = useCurrency();
+  const { convertAmount } = useCurrencyConversion();
   const currencySymbol = getCurrencySymbol();
   const { toast } = useToast();
   
@@ -46,7 +50,8 @@ const ParentDashboard = () => {
   const [childMembers, setChildMembers] = useState<any[]>([]);
   const [spendingData, setSpendingData] = useState<any[]>([]);
   const [savingsGoals, setSavingsGoals] = useState<any[]>([]);
-  const [totalBudget, setTotalBudget] = useState(1000); // Default budget
+  const [recentExpenses, setRecentExpenses] = useState<Expense[]>([]);
+  const [totalBudget, setTotalBudget] = useState(1000);
   const [currentSpending, setCurrentSpending] = useState(0);
   
   // Selected member for adding funds
@@ -72,22 +77,75 @@ const ParentDashboard = () => {
       if (user) {
         setIsLoading(true);
         try {
+          console.log('Loading dashboard data for user:', user.id);
+          
           // Load family members and filter children
           const members = await familyService.getFamilyMembers(user.id);
-          setFamilyMembers(members);
-          setChildMembers(members.filter(member => !member.isParent));
+          console.log('Loaded family members:', members);
           
-          // Load spending data for pie chart
-          const spending = await familyService.getSpendingData(user.id);
-          setSpendingData(spending);
+          // Convert savings amounts to current currency
+          const convertedMembers = await Promise.all(
+            members.map(async (member) => {
+              const convertedSavings = await convertAmount(member.savings, 'USD');
+              return {
+                ...member,
+                savings: convertedSavings
+              };
+            })
+          );
           
-          // Calculate current spending
-          const totalSpent = spending.reduce((sum, item) => sum + item.value, 0);
+          setFamilyMembers(convertedMembers);
+          setChildMembers(convertedMembers.filter(member => !member.isParent));
+          
+          // Load expenses for spending data
+          const expenses = await expenseAPI.getAll();
+          console.log('Loaded expenses:', expenses);
+          setRecentExpenses(expenses.slice(0, 5)); // Get 5 most recent
+          
+          // Process spending data for pie chart
+          const categoryTotals: Record<string, number> = {};
+          
+          for (const expense of expenses) {
+            const category = expense.category || 'Other';
+            const convertedAmount = await convertAmount(expense.amount, expense.currency);
+            categoryTotals[category] = (categoryTotals[category] || 0) + convertedAmount;
+          }
+          
+          // Convert to chart format with colors
+          const colors = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6366F1'];
+          const chartData = Object.entries(categoryTotals).map(([name, value], index) => ({
+            name,
+            value,
+            color: colors[index % colors.length]
+          }));
+          
+          setSpendingData(chartData);
+          
+          // Calculate total spending
+          const totalSpent = Object.values(categoryTotals).reduce((sum, amount) => sum + amount, 0);
           setCurrentSpending(totalSpent);
           
           // Load savings goals
           const goals = await familyService.getSavingsGoals(user.id);
-          setSavingsGoals(goals);
+          console.log('Loaded savings goals:', goals);
+          
+          // Convert goal amounts to current currency
+          const convertedGoals = await Promise.all(
+            goals.map(async (goal) => {
+              const convertedCurrent = await convertAmount(goal.currentAmount, 'USD');
+              const convertedTarget = await convertAmount(goal.targetAmount, 'USD');
+              const percentComplete = convertedTarget > 0 ? (convertedCurrent / convertedTarget) * 100 : 0;
+              
+              return {
+                ...goal,
+                currentAmount: convertedCurrent,
+                targetAmount: convertedTarget,
+                percentComplete: parseFloat(percentComplete.toFixed(1))
+              };
+            })
+          );
+          
+          setSavingsGoals(convertedGoals);
         } catch (error) {
           console.error("Error loading dashboard data:", error);
           toast({
@@ -102,7 +160,7 @@ const ParentDashboard = () => {
     };
     
     loadData();
-  }, [user, toast]);
+  }, [user, currency, convertAmount, toast]);
   
   // Navigate back to profiles
   const handleBackToProfiles = () => {
@@ -705,13 +763,39 @@ const ParentDashboard = () => {
           
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader className="border-b border-gray-700">
-              <CardTitle>Recent Activity</CardTitle>
+              <CardTitle className="flex items-center">
+                <Activity className="h-4 w-4 mr-2" />
+                Recent Activity
+              </CardTitle>
             </CardHeader>
-            <CardContent className="p-4">
-              <div className="text-center py-12 text-gray-400">
-                <p>Activity feed coming soon</p>
-                <p className="text-sm text-gray-500 mt-2">Track allowance payments and savings milestones</p>
-              </div>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="flex justify-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                </div>
+              ) : recentExpenses.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <p>No recent activity</p>
+                  <p className="text-sm text-gray-500 mt-2">Expenses will appear here as they are added</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-700">
+                  {recentExpenses.map(expense => (
+                    <div key={expense.id} className="p-4 flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium text-white">{expense.description}</h3>
+                        <p className="text-sm text-gray-400">{expense.category} • {expense.date}</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium text-white">
+                          {currencySymbol}{expense.amount.toFixed(2)}
+                        </div>
+                        <p className="text-xs text-gray-400">{expense.currency}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

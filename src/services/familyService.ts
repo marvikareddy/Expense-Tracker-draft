@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export interface FamilyMember {
@@ -34,7 +35,8 @@ export const familyService = {
       const { data, error } = await supabase
         .from('family_members')
         .select('*')
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching family members:', error);
@@ -251,7 +253,8 @@ export const familyService = {
       const { data, error } = await supabase
         .from('savings_goals')
         .select('*')
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching savings goals:', error);
@@ -402,8 +405,9 @@ export const familyService = {
       
       const { data, error } = await supabase
         .from('expenses')
-        .select('category, amount')
-        .eq('user_id', userId);
+        .select('category, amount, currency')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching spending data:', error);

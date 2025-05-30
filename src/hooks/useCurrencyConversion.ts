@@ -43,8 +43,24 @@ export function useCurrencyConversion() {
         const rate = await exchangeRateService.getRate(fromCurrency, targetCurrency);
         
         if (rate === null || rate <= 0) {
-          console.warn(`Invalid exchange rate for ${fromCurrency} to ${targetCurrency}`);
-          return amount; // Return original amount as fallback
+          console.warn(`Invalid exchange rate for ${fromCurrency} to ${targetCurrency}, using fallback`);
+          // Use fallback conversion rates for common currencies
+          const fallbackRates: Record<string, Record<string, number>> = {
+            'USD': { 'INR': 83, 'EUR': 0.85, 'GBP': 0.73, 'JPY': 110 },
+            'INR': { 'USD': 0.012, 'EUR': 0.010, 'GBP': 0.009, 'JPY': 1.33 },
+            'EUR': { 'USD': 1.18, 'INR': 98, 'GBP': 0.86, 'JPY': 130 },
+            'GBP': { 'USD': 1.37, 'INR': 114, 'EUR': 1.16, 'JPY': 151 }
+          };
+          
+          const fallbackRate = fallbackRates[fromCurrency]?.[targetCurrency] || 1;
+          
+          // Cache the fallback rate
+          setRates((prevRates) => ({
+            ...prevRates,
+            [rateKey]: fallbackRate,
+          }));
+          
+          return amount * fallbackRate;
         }
         
         console.log(`Got exchange rate from ${fromCurrency} to ${targetCurrency}: ${rate}`);
@@ -60,20 +76,24 @@ export function useCurrencyConversion() {
         return convertedAmount;
       } catch (error) {
         console.error('Error converting currency:', error);
-        // Show toast only for conversion errors, not for every failed attempt
-        if (error instanceof Error && error.message.includes('Failed to fetch')) {
-          toast({
-            variant: "destructive",
-            title: "Currency Conversion Error",
-            description: "Unable to fetch current exchange rates. Using original amounts."
-          });
-        }
-        return amount; // Return original amount as fallback
+        
+        // Use fallback conversion without showing error toast for better UX
+        const fallbackRates: Record<string, Record<string, number>> = {
+          'USD': { 'INR': 83, 'EUR': 0.85, 'GBP': 0.73, 'JPY': 110 },
+          'INR': { 'USD': 0.012, 'EUR': 0.010, 'GBP': 0.009, 'JPY': 1.33 },
+          'EUR': { 'USD': 1.18, 'INR': 98, 'GBP': 0.86, 'JPY': 130 },
+          'GBP': { 'USD': 1.37, 'INR': 114, 'EUR': 1.16, 'JPY': 151 }
+        };
+        
+        const fallbackRate = fallbackRates[fromCurrency]?.[targetCurrency] || 1;
+        console.log(`Using fallback rate: ${fallbackRate} for ${fromCurrency} to ${targetCurrency}`);
+        
+        return amount * fallbackRate;
       } finally {
         setIsLoading(false);
       }
     },
-    [targetCurrency, rates, toast]
+    [targetCurrency, rates]
   );
 
   // Clear rates cache when target currency changes

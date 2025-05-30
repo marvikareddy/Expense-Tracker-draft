@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface FamilyMember {
@@ -31,12 +30,11 @@ export const familyService = {
   getFamilyMembers: async (userId: string): Promise<FamilyMember[]> => {
     try {
       console.log('Fetching family members for user:', userId);
-      const userIdStr = String(userId);
 
       const { data, error } = await supabase
         .from('family_members')
         .select('*')
-        .eq('user_id', userIdStr);
+        .eq('user_id', userId);
 
       if (error) {
         console.error('Error fetching family members:', error);
@@ -68,26 +66,38 @@ export const familyService = {
 
   addFamilyMember: async (userId: string, member: Partial<FamilyMember>): Promise<FamilyMember> => {
     try {
-      console.log('Adding family member:', member);
-      const userIdStr = String(userId);
+      console.log('Adding family member:', member, 'for user:', userId);
+
+      // Validate required fields
+      if (!member.name || member.name.trim() === '') {
+        throw new Error('Name is required');
+      }
+
+      const insertData = {
+        user_id: userId,
+        name: member.name.trim(),
+        age: Number(member.age) || 0,
+        savings: Number(member.savings) || 0,
+        allowance: Number(member.allowance) || 0,
+        image: member.image || '👤',
+        is_parent: member.isParent || false
+      };
+
+      console.log('Insert data:', insertData);
 
       const { data, error } = await supabase
         .from('family_members')
-        .insert([{
-          user_id: userIdStr,
-          name: member.name,
-          age: Number(member.age) || 0,
-          savings: Number(member.savings) || 0,
-          allowance: Number(member.allowance) || 0,
-          image: member.image || '👤',
-          is_parent: member.isParent || false
-        }])
+        .insert([insertData])
         .select()
         .single();
 
       if (error) {
         console.error('Error adding family member:', error);
         throw error;
+      }
+
+      if (!data) {
+        throw new Error('No data returned from insert operation');
       }
 
       const newMember = {
@@ -111,7 +121,6 @@ export const familyService = {
   updateFamilyMember: async (memberId: string, updates: Partial<FamilyMember>): Promise<FamilyMember> => {
     try {
       console.log('Updating family member:', memberId, updates);
-      const memberIdStr = String(memberId);
 
       const updateData: Record<string, any> = {};
       if (updates.name !== undefined) updateData.name = updates.name;
@@ -124,7 +133,7 @@ export const familyService = {
       const { data, error } = await supabase
         .from('family_members')
         .update(updateData)
-        .eq('id', memberIdStr)
+        .eq('id', memberId)
         .select()
         .single();
 
@@ -158,13 +167,12 @@ export const familyService = {
   deleteFamilyMember: async (memberId: string): Promise<void> => {
     try {
       console.log('Deleting family member:', memberId);
-      const memberIdStr = String(memberId);
 
       // Delete related savings goals first
       const { error: goalsError } = await supabase
         .from('savings_goals')
         .delete()
-        .eq('member_id', memberIdStr);
+        .eq('member_id', memberId);
 
       if (goalsError) {
         console.error('Error deleting related savings goals:', goalsError);
@@ -174,14 +182,14 @@ export const familyService = {
       const { error } = await supabase
         .from('family_members')
         .delete()
-        .eq('id', memberIdStr);
+        .eq('id', memberId);
 
       if (error) {
         console.error('Error deleting family member:', error);
         throw error;
       }
 
-      console.log('Successfully deleted family member:', memberIdStr);
+      console.log('Successfully deleted family member:', memberId);
     } catch (error) {
       console.error('Error deleting family member:', error);
       throw error;
@@ -191,12 +199,11 @@ export const familyService = {
   addFunds: async (memberId: string, amount: number): Promise<FamilyMember> => {
     try {
       console.log('Adding funds to member:', memberId, amount);
-      const memberIdStr = String(memberId);
       
       const { data: currentMember, error: fetchError } = await supabase
         .from('family_members')
         .select('*')
-        .eq('id', memberIdStr)
+        .eq('id', memberId)
         .single();
 
       if (fetchError) {
@@ -210,7 +217,7 @@ export const familyService = {
       const { data, error } = await supabase
         .from('family_members')
         .update({ savings: newSavings })
-        .eq('id', memberIdStr)
+        .eq('id', memberId)
         .select()
         .single();
 
@@ -240,12 +247,11 @@ export const familyService = {
   getSavingsGoals: async (userId: string): Promise<SavingsGoal[]> => {
     try {
       console.log('Fetching savings goals for user:', userId);
-      const userIdStr = String(userId);
       
       const { data, error } = await supabase
         .from('savings_goals')
         .select('*')
-        .eq('user_id', userIdStr);
+        .eq('user_id', userId);
 
       if (error) {
         console.error('Error fetching savings goals:', error);
@@ -284,14 +290,12 @@ export const familyService = {
   addSavingsGoal: async (userId: string, memberId: string, goal: Partial<SavingsGoal>): Promise<SavingsGoal> => {
     try {
       console.log('Adding savings goal:', goal);
-      const userIdStr = String(userId);
-      const memberIdStr = String(memberId);
       
       const { data, error } = await supabase
         .from('savings_goals')
         .insert([{
-          user_id: userIdStr,
-          member_id: memberIdStr,
+          user_id: userId,
+          member_id: memberId,
           name: goal.name,
           current_amount: Number(goal.currentAmount) || 0,
           target_amount: Number(goal.targetAmount) || 0,
@@ -330,7 +334,6 @@ export const familyService = {
   updateSavingsGoal: async (goalId: string, updates: Partial<SavingsGoal>): Promise<SavingsGoal> => {
     try {
       console.log('Updating savings goal:', goalId, updates);
-      const goalIdStr = String(goalId);
 
       const updateData: Record<string, any> = {};
       if (updates.name !== undefined) updateData.name = updates.name;
@@ -341,7 +344,7 @@ export const familyService = {
       const { data, error } = await supabase
         .from('savings_goals')
         .update(updateData)
-        .eq('id', goalIdStr)
+        .eq('id', goalId)
         .select()
         .single();
 
@@ -375,19 +378,18 @@ export const familyService = {
   deleteSavingsGoal: async (goalId: string): Promise<void> => {
     try {
       console.log('Deleting savings goal:', goalId);
-      const goalIdStr = String(goalId);
 
       const { error } = await supabase
         .from('savings_goals')
         .delete()
-        .eq('id', goalIdStr);
+        .eq('id', goalId);
 
       if (error) {
         console.error('Error deleting savings goal:', error);
         throw error;
       }
 
-      console.log('Successfully deleted savings goal:', goalIdStr);
+      console.log('Successfully deleted savings goal:', goalId);
     } catch (error) {
       console.error('Error deleting savings goal:', error);
       throw error;
@@ -397,12 +399,11 @@ export const familyService = {
   getSpendingData: async (userId: string): Promise<SpendingDataItem[]> => {
     try {
       console.log('Fetching spending data for user:', userId);
-      const userIdStr = String(userId);
       
       const { data, error } = await supabase
         .from('expenses')
         .select('category, amount')
-        .eq('user_id', userIdStr);
+        .eq('user_id', userId);
 
       if (error) {
         console.error('Error fetching spending data:', error);

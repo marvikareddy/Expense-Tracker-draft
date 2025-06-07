@@ -56,16 +56,6 @@ export const resetService = {
         console.error('Error deleting all family members:', membersError);
       }
       
-      // Delete all exchange rates
-      const { error: ratesError } = await supabase
-        .from('exchange_rates')
-        .delete()
-        .neq('id', 0);
-        
-      if (ratesError) {
-        console.error('Error deleting all exchange rates:', ratesError);
-      }
-      
       // Delete all transaction labels
       const { error: transactionLabelsError } = await supabase
         .from('transaction_labels')

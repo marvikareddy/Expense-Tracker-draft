@@ -40,7 +40,7 @@ export function useCurrencyConversion() {
         setIsLoading(true);
         console.log(`Fetching exchange rate from ${fromCurrency} to ${targetCurrency}`);
         
-        const rate = await exchangeRateService.getRate(fromCurrency, targetCurrency);
+        const rate = await exchangeRateService.getExchangeRate(fromCurrency, targetCurrency);
         
         if (rate === null || rate <= 0) {
           console.warn(`Invalid exchange rate for ${fromCurrency} to ${targetCurrency}, using fallback`);

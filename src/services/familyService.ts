@@ -413,7 +413,7 @@ export const familyService = {
     try {
       console.log('Fetching spending data for user:', userId);
       
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('expenses')
         .select('category, amount, currency')
         .eq('user_id', userId)

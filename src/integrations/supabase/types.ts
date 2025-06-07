@@ -218,6 +218,92 @@ export type Database = {
           },
         ]
       }
+      expenses: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string | null
+          currency: string | null
+          date: string | null
+          description: string | null
+          id: string
+          member_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string | null
+          currency?: string | null
+          date?: string | null
+          description?: string | null
+          id?: string
+          member_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string | null
+          currency?: string | null
+          date?: string | null
+          description?: string | null
+          id?: string
+          member_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_members: {
+        Row: {
+          age: number | null
+          allowance: number | null
+          created_at: string | null
+          id: string
+          image: string | null
+          is_parent: boolean | null
+          name: string
+          savings: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          age?: number | null
+          allowance?: number | null
+          created_at?: string | null
+          id?: string
+          image?: string | null
+          is_parent?: boolean | null
+          name: string
+          savings?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          age?: number | null
+          allowance?: number | null
+          created_at?: string | null
+          id?: string
+          image?: string | null
+          is_parent?: boolean | null
+          name?: string
+          savings?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       labels: {
         Row: {
           book_id: string | null
@@ -420,6 +506,50 @@ export type Database = {
             columns: ["transaction_id"]
             isOneToOne: false
             referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      savings_goals: {
+        Row: {
+          created_at: string | null
+          current_amount: number | null
+          id: string
+          member_id: string
+          name: string
+          target_amount: number
+          target_date: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_amount?: number | null
+          id?: string
+          member_id: string
+          name: string
+          target_amount: number
+          target_date?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_amount?: number | null
+          id?: string
+          member_id?: string
+          name?: string
+          target_amount?: number
+          target_date?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "savings_goals_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
             referencedColumns: ["id"]
           },
         ]

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -28,7 +27,7 @@ const AddProfile = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name) {
+    if (!name.trim()) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -36,26 +35,40 @@ const AddProfile = () => {
       });
       return;
     }
+
+    if (!user?.id) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You must be logged in to create a profile."
+      });
+      return;
+    }
     
     try {
       setIsSubmitting(true);
+      console.log('Creating profile for user:', user.id);
       
       // Prepare the new family member data
-      const newMember = {
-        name,
+      const newMemberData = {
+        name: name.trim(),
         age: parseInt(age) || 0,
         image: selectedEmoji,
         isParent,
         allowance: isParent ? 0 : parseFloat(allowance) || 0,
         savings: 0
       };
+
+      console.log('New member data:', newMemberData);
       
       // Add the new family member
-      await familyService.addFamilyMember(user?.id || '', newMember);
+      const newMember = await familyService.addFamilyMember(user.id, newMemberData);
+      
+      console.log('Profile created successfully:', newMember);
       
       toast({
         title: "Success",
-        description: `${name}'s profile has been created.`
+        description: `${name}'s profile has been created successfully.`
       });
       
       navigate('/profiles');
@@ -64,7 +77,7 @@ const AddProfile = () => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to create profile. Please try again."
+        description: error instanceof Error ? error.message : "Failed to create profile. Please try again."
       });
     } finally {
       setIsSubmitting(false);
@@ -173,7 +186,7 @@ const AddProfile = () => {
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Creating...
+                Creating Profile...
               </>
             ) : "Create Profile"}
           </Button>

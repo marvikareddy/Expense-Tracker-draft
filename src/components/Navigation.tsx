@@ -19,25 +19,46 @@ import {
   Menu,
   Home,
   Users,
-  PiggyBank,
   ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useToast } from "@/hooks/use-toast";
 
 const Navigation = () => {
   const { user, logout } = useAuth();
   const { currency, setCurrency } = useCurrency();
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     try {
+      setIsLoggingOut(true);
+      console.log('Logging out user...');
+      
       await logout();
+      
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out."
+      });
+      
+      // Clear any local storage data
+      localStorage.removeItem('selectedProfile');
+      
       navigate('/login');
     } catch (error) {
       console.error('Logout error:', error);
+      toast({
+        variant: "destructive",
+        title: "Logout Error",
+        description: "Failed to log out. Please try again."
+      });
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -115,6 +136,27 @@ const Navigation = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* Logout Button */}
+            <Button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              variant="outline"
+              size="sm"
+              className="bg-red-600 hover:bg-red-700 text-white border-red-600"
+            >
+              {isLoggingOut ? (
+                <>
+                  <LogOut className="mr-2 h-4 w-4 animate-spin" />
+                  Logging out...
+                </>
+              ) : (
+                <>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </>
+              )}
+            </Button>
+
             {/* User Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -150,10 +192,11 @@ const Navigation = () => {
                 <DropdownMenuSeparator className="bg-gray-700" />
                 <DropdownMenuItem 
                   onClick={handleLogout}
+                  disabled={isLoggingOut}
                   className="text-gray-300 hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
+                  <span>{isLoggingOut ? 'Logging out...' : 'Log out'}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -194,6 +237,17 @@ const Navigation = () => {
                   </Link>
                 </>
               )}
+              <button
+                onClick={() => {
+                  handleLogout();
+                  setIsMobileMenuOpen(false);
+                }}
+                disabled={isLoggingOut}
+                className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium w-full text-left"
+              >
+                <LogOut className="h-4 w-4 mr-2 inline" />
+                {isLoggingOut ? 'Logging out...' : 'Logout'}
+              </button>
             </div>
           </div>
         )}

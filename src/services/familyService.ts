@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface FamilyMember {
@@ -32,6 +31,10 @@ export const familyService = {
     try {
       console.log('Fetching family members for user:', userId);
 
+      if (!userId) {
+        throw new Error('User ID is required');
+      }
+
       const { data, error } = await supabase
         .from('family_members')
         .select('*')
@@ -40,11 +43,11 @@ export const familyService = {
 
       if (error) {
         console.error('Error fetching family members:', error);
-        throw error;
+        throw new Error(`Failed to fetch family members: ${error.message}`);
       }
       
       if (!data || data.length === 0) {
-        console.log('No family members found');
+        console.log('No family members found for user:', userId);
         return [];
       }
 
@@ -70,6 +73,10 @@ export const familyService = {
     try {
       console.log('Adding family member:', member, 'for user:', userId);
 
+      if (!userId) {
+        throw new Error('User ID is required');
+      }
+
       // Validate required fields
       if (!member.name || member.name.trim() === '') {
         throw new Error('Name is required');
@@ -85,7 +92,7 @@ export const familyService = {
         is_parent: member.isParent || false
       };
 
-      console.log('Insert data:', insertData);
+      console.log('Insert data for family member:', insertData);
 
       const { data, error } = await supabase
         .from('family_members')
@@ -94,8 +101,8 @@ export const familyService = {
         .single();
 
       if (error) {
-        console.error('Error adding family member:', error);
-        throw error;
+        console.error('Supabase error adding family member:', error);
+        throw new Error(`Failed to create family member: ${error.message}`);
       }
 
       if (!data) {
@@ -116,7 +123,10 @@ export const familyService = {
       return newMember;
     } catch (error) {
       console.error('Error adding family member:', error);
-      throw error;
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('An unexpected error occurred while creating the family member');
     }
   },
 

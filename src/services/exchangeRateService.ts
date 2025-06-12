@@ -12,6 +12,7 @@ export interface ExchangeRate {
 export const exchangeRateService = {
   // Fetch exchange rate from the database
   getExchangeRate: async (baseCurrency: string, targetCurrency: string): Promise<ExchangeRate | null> => {
+    console.log(`Fetching exchange rate from DB: ${baseCurrency} to ${targetCurrency}`);
     const { data, error } = await supabase
       .from('exchange_rates')
       .select('*')
@@ -20,15 +21,17 @@ export const exchangeRateService = {
       .single();
     
     if (error) {
-      console.error('Error fetching exchange rate:', error);
+      console.error('Error fetching exchange rate from DB:', error);
       return null;
     }
     
+    console.log('Exchange rate from DB:', data);
     return data;
   },
   
   // Update or insert exchange rate in the database
   updateExchangeRate: async (baseCurrency: string, targetCurrency: string, rate: number): Promise<void> => {
+    console.log(`Updating exchange rate in DB: ${baseCurrency} to ${targetCurrency} = ${rate}`);
     const { error } = await supabase
       .from('exchange_rates')
       .upsert(
@@ -42,19 +45,23 @@ export const exchangeRateService = {
       );
     
     if (error) {
-      console.error('Error updating exchange rate:', error);
+      console.error('Error updating exchange rate in DB:', error);
       throw error;
     }
   },
   
   // Fetch exchange rate from external API
   fetchExchangeRateFromAPI: async (baseCurrency: string, targetCurrency: string): Promise<number | null> => {
+    console.log(`Fetching exchange rate from API: ${baseCurrency} to ${targetCurrency}`);
     try {
+      // Using exchangerate.host API
       const response = await fetch(`https://api.exchangerate.host/latest?base=${baseCurrency}&symbols=${targetCurrency}`);
       const data = await response.json();
       
       if (data && data.rates && data.rates[targetCurrency]) {
-        return data.rates[targetCurrency];
+        const rate = data.rates[targetCurrency];
+        console.log(`API returned rate: ${rate}`);
+        return rate;
       }
       
       return null;
@@ -71,6 +78,8 @@ export const exchangeRateService = {
       return 1;
     }
     
+    console.log(`Getting exchange rate: ${baseCurrency} to ${targetCurrency}`);
+    
     // Try to get from database first
     const storedRate = await exchangeRateService.getExchangeRate(baseCurrency, targetCurrency);
     
@@ -81,6 +90,7 @@ export const exchangeRateService = {
       const hoursDiff = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60);
       
       if (hoursDiff < 24) {
+        console.log(`Using stored rate: ${storedRate.rate}`);
         return storedRate.rate;
       }
     }
@@ -96,9 +106,11 @@ export const exchangeRateService = {
     
     // If API call failed, use stored rate if available, even if it's old
     if (storedRate) {
+      console.log(`Using old stored rate: ${storedRate.rate}`);
       return storedRate.rate;
     }
     
+    console.log('No rate available');
     return null;
   },
   

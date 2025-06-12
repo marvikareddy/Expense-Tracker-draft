@@ -17,9 +17,16 @@ export interface Expense {
 export const expenseAPI = {
   // Get all expenses for the current user
   getAll: async (): Promise<Expense[]> => {
+    const { data: user } = await supabase.auth.getUser();
+    
+    if (!user?.user) {
+      return [];
+    }
+    
     const { data, error } = await supabase
       .from('expenses')
       .select('*')
+      .eq('user_id', user.user.id)
       .order('date', { ascending: false });
 
     if (error) {
@@ -32,6 +39,7 @@ export const expenseAPI = {
 
   // Create a new expense
   create: async (expense: Omit<Expense, 'id' | 'created_at'>): Promise<Expense> => {
+    console.log("Creating expense:", expense);
     const { data, error } = await supabase
       .from('expenses')
       .insert(expense)

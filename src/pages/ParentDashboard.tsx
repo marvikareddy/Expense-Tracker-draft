@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +14,8 @@ import {
   PlusCircle,
   CreditCard,
   Loader2,
-  Activity
+  Activity,
+  Plus
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -29,6 +29,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import Navigation from '@/components/Navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -65,12 +66,31 @@ const ParentDashboard = () => {
   const [goalDate, setGoalDate] = useState('');
   const [isAddingGoal, setIsAddingGoal] = useState(false);
   
+  // Parent expense form state
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [expenseDescription, setExpenseDescription] = useState('');
+  const [expenseCategory, setExpenseCategory] = useState('');
+  const [isAddingExpense, setIsAddingExpense] = useState(false);
+  
   const [isAddingFunds, setIsAddingFunds] = useState(false);
 
   // Get selected family profile from localStorage
   const selectedProfile = localStorage.getItem('selectedProfile') 
     ? JSON.parse(localStorage.getItem('selectedProfile')!)
     : null;
+
+  const categories = [
+    'Food & Dining',
+    'Shopping',
+    'Entertainment',
+    'Transportation',
+    'Bills & Utilities',
+    'Health & Fitness',
+    'Travel',
+    'Education',
+    'Gifts & Donations',
+    'Other'
+  ];
   
   useEffect(() => {
     const loadData = async () => {
@@ -83,12 +103,14 @@ const ParentDashboard = () => {
           const members = await familyService.getFamilyMembers(user.id);
           console.log('Loaded family members:', members);
           
-          // Convert savings amounts to current currency
+          // Convert allowance amounts to current currency (allowance = pocket money)
           const convertedMembers = await Promise.all(
             members.map(async (member) => {
+              const convertedAllowance = await convertAmount(member.allowance, 'USD');
               const convertedSavings = await convertAmount(member.savings, 'USD');
               return {
                 ...member,
+                allowance: convertedAllowance, // This is pocket money
                 savings: convertedSavings
               };
             })
@@ -97,12 +119,12 @@ const ParentDashboard = () => {
           setFamilyMembers(convertedMembers);
           setChildMembers(convertedMembers.filter(member => !member.isParent));
           
-          // Load expenses for spending data
+          // Load expenses for spending data (include all family member expenses)
           const expenses = await expenseAPI.getAll();
           console.log('Loaded expenses:', expenses);
           setRecentExpenses(expenses.slice(0, 5)); // Get 5 most recent
           
-          // Process spending data for pie chart
+          // Process spending data for pie chart with currency conversion
           const categoryTotals: Record<string, number> = {};
           
           for (const expense of expenses) {
@@ -121,9 +143,13 @@ const ParentDashboard = () => {
           
           setSpendingData(chartData);
           
-          // Calculate total spending
+          // Calculate total spending in current currency
           const totalSpent = Object.values(categoryTotals).reduce((sum, amount) => sum + amount, 0);
           setCurrentSpending(totalSpent);
+          
+          // Convert budget to current currency
+          const convertedBudget = await convertAmount(totalBudget, 'USD');
+          setTotalBudget(convertedBudget);
           
           // Load savings goals
           const goals = await familyService.getSavingsGoals(user.id);
@@ -167,7 +193,7 @@ const ParentDashboard = () => {
     navigate('/profiles');
   };
   
-  // Handle adding funds to a child's account
+  // Handle adding funds to a child's allowance (pocket money)
   const handleAddFunds = async () => {
     if (!selectedMember || !fundAmount || parseFloat(fundAmount) <= 0) {
       toast({
@@ -180,7 +206,11 @@ const ParentDashboard = () => {
     
     try {
       setIsAddingFunds(true);
-      await familyService.addFunds(selectedMember.id, parseFloat(fundAmount));
+      
+      // Update allowance (pocket money) instead of savings
+      const updatedMember = await familyService.updateFamilyMember(selectedMember.id, {
+        allowance: selectedMember.allowance + parseFloat(fundAmount)
+      });
       
       // Refresh family members to update balances
       const updatedMembers = await familyService.getFamilyMembers(user?.id || '');
@@ -189,7 +219,7 @@ const ParentDashboard = () => {
       
       toast({
         title: "Success",
-        description: `Added ${currencySymbol}${fundAmount} to ${selectedMember.name}'s account.`
+        description: `Added ${currencySymbol}${fundAmount} to ${selectedMember.name}'s pocket money.`
       });
       
       // Reset inputs
@@ -261,6 +291,74 @@ const ParentDashboard = () => {
     }
   };
 
+  // Handle adding parent expense
+  const handleAddExpense = async () => {
+    if (!expenseAmount || !expenseDescription || !expenseCategory) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please fill out all fields."
+      });
+      return;
+    }
+
+    try {
+      setIsAddingExpense(true);
+      
+      const newExpense = {
+        user_id: user?.id || '',
+        amount: parseFloat(expenseAmount),
+        description: expenseDescription,
+        category: expenseCategory,
+        currency: currency,
+        date: new Date().toISOString().split('T')[0]
+      };
+
+      await expenseAPI.create(newExpense);
+
+      // Refresh expenses and spending data
+      const expenses = await expenseAPI.getAll();
+      setRecentExpenses(expenses.slice(0, 5));
+
+      // Recalculate spending data
+      const categoryTotals: Record<string, number> = {};
+      for (const expense of expenses) {
+        const category = expense.category || 'Other';
+        const convertedAmount = await convertAmount(expense.amount, expense.currency);
+        categoryTotals[category] = (categoryTotals[category] || 0) + convertedAmount;
+      }
+
+      const colors = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6366F1'];
+      const chartData = Object.entries(categoryTotals).map(([name, value], index) => ({
+        name,
+        value,
+        color: colors[index % colors.length]
+      }));
+
+      setSpendingData(chartData);
+      setCurrentSpending(Object.values(categoryTotals).reduce((sum, amount) => sum + amount, 0));
+
+      toast({
+        title: "Success",
+        description: "Expense added successfully!"
+      });
+
+      // Reset form
+      setExpenseAmount('');
+      setExpenseDescription('');
+      setExpenseCategory('');
+    } catch (error) {
+      console.error("Error adding expense:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to add expense. Please try again."
+      });
+    } finally {
+      setIsAddingExpense(false);
+    }
+  };
+
   // Calculate budget percentage used
   const budgetUsedPercentage = totalBudget > 0 ? (currentSpending / totalBudget) * 100 : 0;
 
@@ -280,11 +378,83 @@ const ParentDashboard = () => {
             </Button>
             <h1 className="text-3xl font-bold">Family Dashboard</h1>
           </div>
-          {selectedProfile && (
-            <Avatar className="w-10 h-10 bg-purple-600">
-              <AvatarFallback>{selectedProfile.image}</AvatarFallback>
-            </Avatar>
-          )}
+          <div className="flex items-center gap-4">
+            {/* Add Expense Button */}
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button className="bg-green-600 hover:bg-green-700">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Expense
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-gray-800 text-white border-gray-700">
+                <DialogHeader>
+                  <DialogTitle>Add Parent Expense</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div>
+                    <Label htmlFor="expense-amount" className="text-gray-300">Amount</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-gray-400">{currencySymbol}</span>
+                      <Input 
+                        id="expense-amount" 
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="pl-7 bg-gray-700 border-gray-600 text-white"
+                        value={expenseAmount}
+                        onChange={(e) => setExpenseAmount(e.target.value)}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="expense-description" className="text-gray-300">Description</Label>
+                    <Textarea 
+                      id="expense-description" 
+                      className="bg-gray-700 border-gray-600 text-white"
+                      value={expenseDescription}
+                      onChange={(e) => setExpenseDescription(e.target.value)}
+                      placeholder="What was this expense for?"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="expense-category" className="text-gray-300">Category</Label>
+                    <Select value={expenseCategory} onValueChange={setExpenseCategory}>
+                      <SelectTrigger id="expense-category" className="bg-gray-700 border-gray-600 text-white">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-700 border-gray-600">
+                        {categories.map(category => (
+                          <SelectItem key={category} value={category}>{category}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3">
+                  <DialogClose asChild>
+                    <Button variant="outline" className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
+                      Cancel
+                    </Button>
+                  </DialogClose>
+                  <Button 
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={handleAddExpense}
+                    disabled={isAddingExpense || !expenseAmount || !expenseDescription || !expenseCategory}
+                  >
+                    {isAddingExpense ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Add Expense
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+            {selectedProfile && (
+              <Avatar className="w-10 h-10 bg-purple-600">
+                <AvatarFallback>{selectedProfile.image}</AvatarFallback>
+              </Avatar>
+            )}
+          </div>
         </div>
         
         <div className="grid gap-4 md:grid-cols-3 mb-8">
@@ -519,7 +689,10 @@ const ParentDashboard = () => {
                       </div>
                       <div className="flex flex-col items-end">
                         <div className="font-medium text-white mb-1">
-                          {currencySymbol}{child.savings.toFixed(2)}
+                          Pocket Money: {currencySymbol}{child.allowance.toFixed(2)}
+                        </div>
+                        <div className="text-sm text-gray-400 mb-2">
+                          Savings: {currencySymbol}{child.savings.toFixed(2)}
                         </div>
                         <div className="flex space-x-2">
                           <Dialog>
@@ -530,7 +703,7 @@ const ParentDashboard = () => {
                             </DialogTrigger>
                             <DialogContent className="bg-gray-800 text-white border-gray-700">
                               <DialogHeader>
-                                <DialogTitle>Add Funds to {child.name}'s Account</DialogTitle>
+                                <DialogTitle>Add Funds to {child.name}'s Pocket Money</DialogTitle>
                               </DialogHeader>
                               <div className="grid gap-4 py-4">
                                 <div>
@@ -570,7 +743,7 @@ const ParentDashboard = () => {
                                   {isAddingFunds && selectedMember?.id === child.id ? (
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                                   ) : null}
-                                  Add Funds
+                                  Add to Pocket Money
                                 </Button>
                               </div>
                             </DialogContent>
@@ -780,11 +953,16 @@ const ParentDashboard = () => {
                 </div>
               ) : (
                 <div className="divide-y divide-gray-700">
-                  {recentExpenses.map(expense => (
-                    <div key={expense.id} className="p-4 flex items-center justify-between">
+                  {recentExpenses.map((expense, index) => (
+                    <div key={expense.id || index} className="p-4 flex items-center justify-between">
                       <div>
                         <h3 className="font-medium text-white">{expense.description}</h3>
                         <p className="text-sm text-gray-400">{expense.category} • {expense.date}</p>
+                        {expense.member_id && (
+                          <p className="text-xs text-gray-500">
+                            By: {familyMembers.find(m => m.id === expense.member_id)?.name || 'Family Member'}
+                          </p>
+                        )}
                       </div>
                       <div className="text-right">
                         <div className="font-medium text-white">

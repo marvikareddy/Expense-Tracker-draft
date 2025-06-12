@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export interface FamilyMember {
@@ -208,9 +209,10 @@ export const familyService = {
     }
   },
 
+  // Legacy method for backwards compatibility - now updates allowance instead of savings
   addFunds: async (memberId: string, amount: number): Promise<FamilyMember> => {
     try {
-      console.log('Adding funds to member:', memberId, amount);
+      console.log('Adding funds to member allowance:', memberId, amount);
       
       const { data: currentMember, error: fetchError } = await supabase
         .from('family_members')
@@ -223,18 +225,18 @@ export const familyService = {
         throw fetchError;
       }
 
-      const currentSavings = parseFloat(String(currentMember.savings)) || 0;
-      const newSavings = currentSavings + amount;
+      const currentAllowance = parseFloat(String(currentMember.allowance)) || 0;
+      const newAllowance = currentAllowance + amount;
 
       const { data, error } = await supabase
         .from('family_members')
-        .update({ savings: newSavings })
+        .update({ allowance: newAllowance })
         .eq('id', memberId)
         .select()
         .single();
 
       if (error) {
-        console.error('Error updating savings:', error);
+        console.error('Error updating allowance:', error);
         throw error;
       }
 
@@ -248,7 +250,7 @@ export const familyService = {
         isParent: data.is_parent || false
       };
 
-      console.log('Successfully added funds:', updatedMember);
+      console.log('Successfully added funds to allowance:', updatedMember);
       return updatedMember;
     } catch (error) {
       console.error('Error adding funds:', error);

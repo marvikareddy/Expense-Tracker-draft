@@ -64,6 +64,22 @@ const Navigation = () => {
 
   const handleCurrencyChange = (newCurrency: string) => {
     setCurrency(newCurrency);
+    // Force page refresh to update all currency conversions
+    window.location.reload();
+  };
+
+  const handleProfileClick = () => {
+    toast({
+      title: "Profile",
+      description: "Profile management coming soon!"
+    });
+  };
+
+  const handleSettingsClick = () => {
+    toast({
+      title: "Settings",
+      description: "Settings panel coming soon!"
+    });
   };
 
   const currencies = [
@@ -180,11 +196,17 @@ const Navigation = () => {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-gray-700" />
                 <DropdownMenuGroup>
-                  <DropdownMenuItem className="text-gray-300 hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white">
+                  <DropdownMenuItem 
+                    onClick={handleProfileClick}
+                    className="text-gray-300 hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
+                  >
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="text-gray-300 hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white">
+                  <DropdownMenuItem 
+                    onClick={handleSettingsClick}
+                    className="text-gray-300 hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
+                  >
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Settings</span>
                   </DropdownMenuItem>

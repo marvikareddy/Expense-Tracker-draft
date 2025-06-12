@@ -95,14 +95,14 @@ const ParentDashboard = () => {
   ];
 
   // Handle settings click
-  const handleSettingsClick = () => {
-    navigate('/settings');
-  };
+  // const handleSettingsClick = () => {
+  //   navigate('/settings');
+  // };
 
   // Handle profile click
-  const handleProfileClick = () => {
-    navigate('/profile');
-  };
+  // const handleProfileClick = () => {
+  //   navigate('/profile');
+  // };
   
   useEffect(() => {
     const loadData = async () => {
@@ -417,28 +417,6 @@ const ParentDashboard = () => {
             <h1 className="text-3xl font-bold">Family Dashboard</h1>
           </div>
           <div className="flex items-center gap-4">
-            {/* Profile Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-gray-300 hover:text-white"
-              onClick={handleProfileClick}
-            >
-              <User className="h-4 w-4 mr-2" />
-              Profile
-            </Button>
-            
-            {/* Settings Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-gray-300 hover:text-white"
-              onClick={handleSettingsClick}
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-            
             {/* Add Expense Button */}
             <Dialog>
               <DialogTrigger asChild>
@@ -521,7 +499,6 @@ const ParentDashboard = () => {
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-gray-700">
               <CardTitle className="text-sm font-medium text-gray-200">Family Budget</CardTitle>
-              {/* Removed DollarSign icon as requested */}
             </CardHeader>
             <CardContent className="pt-4">
               {isLoading ? (

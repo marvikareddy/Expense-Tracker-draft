@@ -48,6 +48,7 @@ const Navigation = () => {
       
       // Clear any local storage data
       localStorage.removeItem('selectedProfile');
+      localStorage.removeItem('selectedCurrency');
       
       navigate('/login');
     } catch (error) {
@@ -63,23 +64,8 @@ const Navigation = () => {
   };
 
   const handleCurrencyChange = (newCurrency: string) => {
+    console.log('Currency change requested:', newCurrency);
     setCurrency(newCurrency);
-    // Force page refresh to update all currency conversions
-    window.location.reload();
-  };
-
-  const handleProfileClick = () => {
-    toast({
-      title: "Profile",
-      description: "Profile management coming soon!"
-    });
-  };
-
-  const handleSettingsClick = () => {
-    toast({
-      title: "Settings",
-      description: "Settings panel coming soon!"
-    });
   };
 
   const currencies = [
@@ -194,23 +180,6 @@ const Navigation = () => {
                     </p>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-gray-700" />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem 
-                    onClick={handleProfileClick}
-                    className="text-gray-300 hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
-                  >
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={handleSettingsClick}
-                    className="text-gray-300 hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
-                  >
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
                 <DropdownMenuSeparator className="bg-gray-700" />
                 <DropdownMenuItem 
                   onClick={handleLogout}

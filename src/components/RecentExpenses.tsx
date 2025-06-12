@@ -21,24 +21,13 @@ import { useCurrency } from '@/contexts/CurrencyContext';
 import { Loader2 } from 'lucide-react';
 import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
 
-interface ConvertedExpense {
-  id: string;
-  amount: number;
-  category: string;
-  description: string;
-  date: string;
-  currency: string;
-  convertedAmount: number;
-  displayCurrency: string;
-}
-
 const RecentExpenses = () => {
   const [currencyFilter, setCurrencyFilter] = useState<string>("all");
   const { expenses, isLoading } = useExpenses();
   const { currency: displayCurrency, getCurrencySymbol } = useCurrency();
   const { convertAmount, isLoading: isConverting } = useCurrencyConversion();
   
-  const [convertedExpenses, setConvertedExpenses] = useState<ConvertedExpense[]>([]);
+  const [convertedExpenses, setConvertedExpenses] = useState<Array<any>>([]);
   const [isProcessing, setIsProcessing] = useState<boolean>(true);
   
   const currencies = [
@@ -66,39 +55,18 @@ const RecentExpenses = () => {
       setIsProcessing(true);
       
       try {
-        const converted: ConvertedExpense[] = [];
-        
-        for (const expense of expenses) {
-          try {
-            const originalAmount = expense.amount || 0;
-            const expenseCurrency = expense.currency || 'USD';
-            const convertedAmount = await convertAmount(originalAmount, expenseCurrency);
+        const converted = await Promise.all(
+          expenses.map(async (expense) => {
+            const originalAmount = expense.amount;
+            const convertedAmount = await convertAmount(originalAmount, expense.currency);
             
-            converted.push({
-              id: expense.id,
-              amount: originalAmount,
-              category: expense.category,
-              description: expense.description,
-              date: expense.date,
-              currency: expenseCurrency,
-              convertedAmount: convertedAmount || originalAmount,
+            return {
+              ...expense,
+              convertedAmount,
               displayCurrency
-            });
-          } catch (error) {
-            console.error(`Error converting expense ${expense.id}:`, error);
-            // Add expense with original amount if conversion fails
-            converted.push({
-              id: expense.id,
-              amount: expense.amount || 0,
-              category: expense.category,
-              description: expense.description,
-              date: expense.date,
-              currency: expense.currency || 'USD',
-              convertedAmount: expense.amount || 0,
-              displayCurrency
-            });
-          }
-        }
+            };
+          })
+        );
         
         setConvertedExpenses(converted);
       } catch (error) {

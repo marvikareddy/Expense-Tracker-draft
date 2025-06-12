@@ -1,6 +1,5 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { exchangeRateService } from '@/services/exchangeRateService';
 
 interface CurrencyContextType {
   currency: string;
@@ -28,64 +27,22 @@ const CURRENCIES = {
   GBP: '£',
   JPY: '¥',
   INR: '₹',
-  CAD: 'C$',
-  AUD: 'A$',
-  CNY: '¥',
-  CHF: 'Fr',
-  SEK: 'kr'
 };
 
 export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) => {
   const [currency, setCurrency] = useState<string>(() => {
-    try {
-      // First, try to get from localStorage
-      const savedCurrency = localStorage.getItem('selectedCurrency');
-      if (savedCurrency && CURRENCIES[savedCurrency as keyof typeof CURRENCIES]) {
-        return savedCurrency;
-      }
-    } catch (error) {
-      console.warn('Error reading currency from localStorage:', error);
-    }
-    return 'INR'; // Default to INR if nothing in localStorage or error
+    // First, try to get from localStorage
+    const savedCurrency = localStorage.getItem('selectedCurrency');
+    return savedCurrency || 'INR'; // Default to INR if nothing in localStorage
   });
 
-  const handleSetCurrency = (newCurrency: string) => {
-    console.log('Setting currency to:', newCurrency);
-    
-    if (!CURRENCIES[newCurrency as keyof typeof CURRENCIES]) {
-      console.warn('Invalid currency:', newCurrency);
-      return;
-    }
-    
-    setCurrency(newCurrency);
-    
-    try {
-      // Clear exchange rate cache when currency changes
-      exchangeRateService.clearCache();
-      
-      // Update localStorage
-      localStorage.setItem('selectedCurrency', newCurrency);
-      
-      // Dispatch custom event for currency change
-      const event = new CustomEvent('currencyChanged', { detail: newCurrency });
-      window.dispatchEvent(event);
-      
-      // Force page refresh to update all currency conversions immediately
-      setTimeout(() => {
-        window.location.reload();
-      }, 100);
-    } catch (error) {
-      console.warn('Error saving currency to localStorage:', error);
-    }
-  };
-
   useEffect(() => {
+    // Update localStorage when currency changes
+    localStorage.setItem('selectedCurrency', currency);
+    
     // Listen for currency change events from other components
     const handleCurrencyChange = (event: CustomEvent) => {
-      const newCurrency = event.detail;
-      if (newCurrency !== currency && CURRENCIES[newCurrency as keyof typeof CURRENCIES]) {
-        setCurrency(newCurrency);
-      }
+      setCurrency(event.detail);
     };
     
     window.addEventListener('currencyChanged', handleCurrencyChange as EventListener);
@@ -101,7 +58,7 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
 
   const value = {
     currency,
-    setCurrency: handleSetCurrency,
+    setCurrency,
     getCurrencySymbol,
   };
 

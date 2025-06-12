@@ -1,112 +1,115 @@
 
-interface ExchangeRate {
+import { supabase } from '@/integrations/supabase/client';
+
+export interface ExchangeRate {
+  id: number;
   base_currency: string;
   target_currency: string;
   rate: number;
-  updated_at: string;
+  last_updated: string;
 }
-
-interface ExchangeRateCache {
-  [key: string]: {
-    rate: number;
-    timestamp: number;
-  };
-}
-
-// Cache exchange rates for 1 hour
-const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
-const exchangeRateCache: ExchangeRateCache = {};
 
 export const exchangeRateService = {
-  getExchangeRate: async (from: string, to: string): Promise<number> => {
-    if (from === to) return 1;
-
-    const cacheKey = `${from}-${to}`;
-    const now = Date.now();
-
-    // Check cache first
-    if (exchangeRateCache[cacheKey] && 
-        (now - exchangeRateCache[cacheKey].timestamp) < CACHE_DURATION) {
-      return exchangeRateCache[cacheKey].rate;
-    }
-
-    try {
-      // Updated exchange rates based on your provided rates
-      const exchangeRates: { [key: string]: number } = {
-        // From INR to other currencies
-        'INR-USD': 0.0117,
-        'INR-AUD': 0.0180,
-        'INR-CAD': 0.0160,
-        'INR-EUR': 0.0102,
-        'INR-GBP': 0.0087,
-        'INR-JPY': 1.695,
-        
-        // From other currencies to INR
-        'USD-INR': 85.48,
-        'AUD-INR': 55.68,
-        'CAD-INR': 62.55,
-        'EUR-INR': 97.72,
-        'GBP-INR': 115.36,
-        'JPY-INR': 0.590,
-        
-        // Cross rates (calculated from INR base)
-        'USD-EUR': 0.0117 / 0.0102,
-        'EUR-USD': 0.0102 / 0.0117,
-        'USD-GBP': 0.0117 / 0.0087,
-        'GBP-USD': 0.0087 / 0.0117,
-        'USD-JPY': 0.0117 / (1/1.695),
-        'JPY-USD': (1/1.695) / 0.0117,
-        'USD-CAD': 0.0117 / 0.0160,
-        'CAD-USD': 0.0160 / 0.0117,
-        'USD-AUD': 0.0117 / 0.0180,
-        'AUD-USD': 0.0180 / 0.0117,
-        'EUR-GBP': 0.0102 / 0.0087,
-        'GBP-EUR': 0.0087 / 0.0102,
-        'EUR-JPY': 0.0102 / (1/1.695),
-        'JPY-EUR': (1/1.695) / 0.0102,
-        'EUR-CAD': 0.0102 / 0.0160,
-        'CAD-EUR': 0.0160 / 0.0102,
-        'EUR-AUD': 0.0102 / 0.0180,
-        'AUD-EUR': 0.0180 / 0.0102,
-        'GBP-JPY': 0.0087 / (1/1.695),
-        'JPY-GBP': (1/1.695) / 0.0087,
-        'GBP-CAD': 0.0087 / 0.0160,
-        'CAD-GBP': 0.0160 / 0.0087,
-        'GBP-AUD': 0.0087 / 0.0180,
-        'AUD-GBP': 0.0180 / 0.0087,
-        'JPY-CAD': (1/1.695) / 0.0160,
-        'CAD-JPY': 0.0160 / (1/1.695),
-        'JPY-AUD': (1/1.695) / 0.0180,
-        'AUD-JPY': 0.0180 / (1/1.695),
-        'CAD-AUD': 0.0160 / 0.0180,
-        'AUD-CAD': 0.0180 / 0.0160
-      };
-
-      const rate = exchangeRates[cacheKey] || 1;
-      
-      // Cache the rate
-      exchangeRateCache[cacheKey] = {
-        rate,
-        timestamp: now
-      };
-
-      return rate;
-    } catch (error) {
+  // Fetch exchange rate from the database
+  getExchangeRate: async (baseCurrency: string, targetCurrency: string): Promise<ExchangeRate | null> => {
+    const { data, error } = await supabase
+      .from('exchange_rates')
+      .select('*')
+      .eq('base_currency', baseCurrency)
+      .eq('target_currency', targetCurrency)
+      .single();
+    
+    if (error) {
       console.error('Error fetching exchange rate:', error);
-      // Return 1 as fallback
+      return null;
+    }
+    
+    return data;
+  },
+  
+  // Update or insert exchange rate in the database
+  updateExchangeRate: async (baseCurrency: string, targetCurrency: string, rate: number): Promise<void> => {
+    const { error } = await supabase
+      .from('exchange_rates')
+      .upsert(
+        {
+          base_currency: baseCurrency,
+          target_currency: targetCurrency,
+          rate,
+          last_updated: new Date().toISOString(),
+        },
+        { onConflict: 'base_currency,target_currency' }
+      );
+    
+    if (error) {
+      console.error('Error updating exchange rate:', error);
+      throw error;
+    }
+  },
+  
+  // Fetch exchange rate from external API
+  fetchExchangeRateFromAPI: async (baseCurrency: string, targetCurrency: string): Promise<number | null> => {
+    try {
+      const response = await fetch(`https://api.exchangerate.host/latest?base=${baseCurrency}&symbols=${targetCurrency}`);
+      const data = await response.json();
+      
+      if (data && data.rates && data.rates[targetCurrency]) {
+        return data.rates[targetCurrency];
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error fetching exchange rate from API:', error);
+      return null;
+    }
+  },
+  
+  // Get exchange rate, first from DB, then from API if needed
+  getRate: async (baseCurrency: string, targetCurrency: string): Promise<number | null> => {
+    // If same currency, return 1
+    if (baseCurrency === targetCurrency) {
       return 1;
     }
+    
+    // Try to get from database first
+    const storedRate = await exchangeRateService.getExchangeRate(baseCurrency, targetCurrency);
+    
+    // Check if rate is recent (less than 24 hours old)
+    if (storedRate) {
+      const lastUpdated = new Date(storedRate.last_updated);
+      const now = new Date();
+      const hoursDiff = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursDiff < 24) {
+        return storedRate.rate;
+      }
+    }
+    
+    // Fetch fresh rate from API
+    const freshRate = await exchangeRateService.fetchExchangeRateFromAPI(baseCurrency, targetCurrency);
+    
+    // Store the new rate in database if we got a valid response
+    if (freshRate) {
+      await exchangeRateService.updateExchangeRate(baseCurrency, targetCurrency, freshRate);
+      return freshRate;
+    }
+    
+    // If API call failed, use stored rate if available, even if it's old
+    if (storedRate) {
+      return storedRate.rate;
+    }
+    
+    return null;
   },
-
-  convertAmount: async (amount: number, from: string, to: string): Promise<number> => {
-    const rate = await exchangeRateService.getExchangeRate(from, to);
+  
+  // Convert amount from one currency to another
+  convertCurrency: async (amount: number, fromCurrency: string, toCurrency: string): Promise<number | null> => {
+    const rate = await exchangeRateService.getRate(fromCurrency, toCurrency);
+    
+    if (rate === null) {
+      return null;
+    }
+    
     return amount * rate;
-  },
-
-  // Clear cache when currency changes
-  clearCache: () => {
-    Object.keys(exchangeRateCache).forEach(key => {
-      delete exchangeRateCache[key];
-    });
   }
 };

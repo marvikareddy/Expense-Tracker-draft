@@ -15,7 +15,9 @@ import {
   CreditCard,
   Loader2,
   Activity,
-  Plus
+  Plus,
+  Settings,
+  User
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -91,6 +93,16 @@ const ParentDashboard = () => {
     'Gifts & Donations',
     'Other'
   ];
+
+  // Handle settings click
+  const handleSettingsClick = () => {
+    navigate('/settings');
+  };
+
+  // Handle profile click
+  const handleProfileClick = () => {
+    navigate('/profile');
+  };
   
   useEffect(() => {
     const loadData = async () => {
@@ -119,12 +131,12 @@ const ParentDashboard = () => {
           setFamilyMembers(convertedMembers);
           setChildMembers(convertedMembers.filter(member => !member.isParent));
           
-          // Load expenses for spending data (include all family member expenses)
+          // Load ALL expenses (parent + child expenses)
           const expenses = await expenseAPI.getAll();
           console.log('Loaded expenses:', expenses);
           setRecentExpenses(expenses.slice(0, 5)); // Get 5 most recent
           
-          // Process spending data for pie chart with currency conversion
+          // Process spending data for pie chart with currency conversion (include ALL expenses)
           const categoryTotals: Record<string, number> = {};
           
           for (const expense of expenses) {
@@ -214,8 +226,20 @@ const ParentDashboard = () => {
       
       // Refresh family members to update balances
       const updatedMembers = await familyService.getFamilyMembers(user?.id || '');
-      setFamilyMembers(updatedMembers);
-      setChildMembers(updatedMembers.filter(member => !member.isParent));
+      const convertedMembers = await Promise.all(
+        updatedMembers.map(async (member) => {
+          const convertedAllowance = await convertAmount(member.allowance, 'USD');
+          const convertedSavings = await convertAmount(member.savings, 'USD');
+          return {
+            ...member,
+            allowance: convertedAllowance,
+            savings: convertedSavings
+          };
+        })
+      );
+      
+      setFamilyMembers(convertedMembers);
+      setChildMembers(convertedMembers.filter(member => !member.isParent));
       
       toast({
         title: "Success",
@@ -237,7 +261,6 @@ const ParentDashboard = () => {
     }
   };
   
-  // Handle creating new savings goal
   const handleCreateGoal = async () => {
     if (!goalMember || !goalName || !goalAmount || parseFloat(goalAmount) <= 0) {
       toast({
@@ -267,7 +290,22 @@ const ParentDashboard = () => {
       
       // Refresh savings goals
       const updatedGoals = await familyService.getSavingsGoals(user?.id || '');
-      setSavingsGoals(updatedGoals);
+      const convertedGoals = await Promise.all(
+        updatedGoals.map(async (goal) => {
+          const convertedCurrent = await convertAmount(goal.currentAmount, 'USD');
+          const convertedTarget = await convertAmount(goal.targetAmount, 'USD');
+          const percentComplete = convertedTarget > 0 ? (convertedCurrent / convertedTarget) * 100 : 0;
+          
+          return {
+            ...goal,
+            currentAmount: convertedCurrent,
+            targetAmount: convertedTarget,
+            percentComplete: parseFloat(percentComplete.toFixed(1))
+          };
+        })
+      );
+      
+      setSavingsGoals(convertedGoals);
       
       toast({
         title: "Success",
@@ -320,7 +358,7 @@ const ParentDashboard = () => {
       const expenses = await expenseAPI.getAll();
       setRecentExpenses(expenses.slice(0, 5));
 
-      // Recalculate spending data
+      // Recalculate spending data with ALL expenses (parent + child)
       const categoryTotals: Record<string, number> = {};
       for (const expense of expenses) {
         const category = expense.category || 'Other';
@@ -379,6 +417,28 @@ const ParentDashboard = () => {
             <h1 className="text-3xl font-bold">Family Dashboard</h1>
           </div>
           <div className="flex items-center gap-4">
+            {/* Profile Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-300 hover:text-white"
+              onClick={handleProfileClick}
+            >
+              <User className="h-4 w-4 mr-2" />
+              Profile
+            </Button>
+            
+            {/* Settings Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-300 hover:text-white"
+              onClick={handleSettingsClick}
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Button>
+            
             {/* Add Expense Button */}
             <Dialog>
               <DialogTrigger asChild>
@@ -461,7 +521,7 @@ const ParentDashboard = () => {
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-gray-700">
               <CardTitle className="text-sm font-medium text-gray-200">Family Budget</CardTitle>
-              <DollarSign className="h-4 w-4 text-gray-400" />
+              {/* Removed DollarSign icon as requested */}
             </CardHeader>
             <CardContent className="pt-4">
               {isLoading ? (

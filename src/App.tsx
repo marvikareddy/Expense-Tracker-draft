@@ -1,103 +1,43 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { CurrencyProvider } from "./contexts/CurrencyContext";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import Index from "./pages/Index";
-import Login from "./pages/Login";
-import ChildDashboard from "./pages/ChildDashboard";
-import ParentDashboard from "./pages/ParentDashboard";
-import ProfileSelection from "./pages/ProfileSelection";
-import AddProfile from "./pages/AddProfile";
-import NotFound from "./pages/NotFound";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { CurrencyProvider } from '@/contexts/CurrencyContext';
+import { Toaster } from '@/components/ui/toaster';
+import Index from '@/pages/Index';
+import Login from '@/pages/Login';
+import ProfileSelection from '@/pages/ProfileSelection';
+import AddProfile from '@/pages/AddProfile';
+import ParentDashboard from '@/pages/ParentDashboard';
+import ChildDashboard from '@/pages/ChildDashboard';
+import NotFound from '@/pages/NotFound';
+import './App.css';
 
 const queryClient = new QueryClient();
 
-// Protected route component
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
-  
-  if (loading) {
-    // You could render a loading spinner here
-    return <div className="h-screen flex items-center justify-center">Loading...</div>;
-  }
-  
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return <>{children}</>;
-};
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <CurrencyProvider>
-        <AuthProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route 
-                path="/" 
-                element={
-                  <ProtectedRoute>
-                    <Navigate to="/profiles" replace />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/profiles" 
-                element={
-                  <ProtectedRoute>
-                    <ProfileSelection />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/add-profile" 
-                element={
-                  <ProtectedRoute>
-                    <AddProfile />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/dashboard" 
-                element={
-                  <ProtectedRoute>
-                    <Index />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/child" 
-                element={
-                  <ProtectedRoute>
-                    <ChildDashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/parent" 
-                element={
-                  <ProtectedRoute>
-                    <ParentDashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </AuthProvider>
-      </CurrencyProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <CurrencyProvider>
+          <Router>
+            <div className="min-h-screen bg-gray-50">
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/profiles" element={<ProfileSelection />} />
+                <Route path="/add-profile" element={<AddProfile />} />
+                <Route path="/parent" element={<ParentDashboard />} />
+                <Route path="/child" element={<ChildDashboard />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+              <Toaster />
+            </div>
+          </Router>
+        </CurrencyProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;
